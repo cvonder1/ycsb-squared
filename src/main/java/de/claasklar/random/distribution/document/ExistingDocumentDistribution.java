@@ -21,10 +21,10 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
   private final Executor executor;
 
   public ExistingDocumentDistribution(
-    int bufferSize,
-    DocumentDistribution documentDistribution,
-    Database database,
-    Executor executor) {
+      int bufferSize,
+      DocumentDistribution documentDistribution,
+      Database database,
+      Executor executor) {
     this.queue = new ConcurrentLinkedQueue<>();
     this.bufferSize = bufferSize;
     this.currentSize = new AtomicInteger(0);
@@ -64,20 +64,19 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
   private void fillQueue(int numElements) {
     var queueSize = currentSize.get();
     for (int i = 0; i < Math.min(Math.max((bufferSize - queueSize), 0), numElements); i++) {
-      try (var bufferSpan =
-        new Span(ExistingDocumentDistribution.class, "buffering").enter()) {
+      try (var bufferSpan = new Span(ExistingDocumentDistribution.class, "buffering").enter()) {
         var nextRunnable = documentDistribution.next(bufferSpan);
         if (nextRunnable instanceof ReadDocumentRunnable r) {
           queue.add(r.getId());
           currentSize.incrementAndGet();
         } else if (nextRunnable instanceof WriteDocumentRunnable w) {
           CompletableFuture.supplyAsync(() -> w, executor)
-            .thenAccept(
-              supplied -> {
-                supplied.run();
-                queue.add(supplied.getId());
-                currentSize.incrementAndGet();
-              });
+              .thenAccept(
+                  supplied -> {
+                    supplied.run();
+                    queue.add(supplied.getId());
+                    currentSize.incrementAndGet();
+                  });
         } else {
           throw new IllegalArgumentException("unknown class " + nextRunnable.getClass());
         }

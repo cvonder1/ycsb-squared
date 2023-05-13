@@ -43,7 +43,7 @@ public final class ReadDocumentRunnable implements DocumentRunnable {
       throw new IllegalStateException("ReadDocumentRunnable can only be executed once");
     }
     var runSpan = new Span(this.getClass(), this.id.toString());
-    try (var ignored = this.span.register(runSpan)) {
+    try (var ignored = this.span.register(runSpan).enter()) {
       this.document =
           database
               .read(this.collectionName, this.id.toId(), this.span)

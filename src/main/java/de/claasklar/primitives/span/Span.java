@@ -14,8 +14,8 @@ public class Span implements AutoCloseable {
   private final List<Span> children;
   private final Clock clock;
 
-  private long startTime;
-  private long stopTime;
+  private long startTime = -1;
+  private long stopTime = -1;
 
   private Span(String name) {
     this(name, Clock.systemUTC());
@@ -53,11 +53,17 @@ public class Span implements AutoCloseable {
    * @return this
    */
   public Span enter() {
+    if (this.startTime != -1) {
+      throw new IllegalStateException("cannot start span twice");
+    }
     this.startTime = this.clock.millis();
     return this;
   }
 
   public void exit() {
+    if (this.startTime == -1) {
+      throw new IllegalStateException("cannot exit span that was not started");
+    }
     this.stopTime = this.clock.millis();
   }
 
