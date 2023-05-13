@@ -58,14 +58,15 @@ public class FileIdStore implements IdStore {
     }
   }
 
-  private synchronized Pair<Lock, RandomAccessFile> registerNewCollection(CollectionName collectionName) {
+  private synchronized Pair<Lock, RandomAccessFile> registerNewCollection(
+      CollectionName collectionName) {
     var lockAndFile = this.files.get(collectionName);
     if (lockAndFile == null) {
       try {
         lockAndFile =
-          new Pair<>(
-            new ReentrantLock(),
-            new RandomAccessFile(File.createTempFile("ycsb_ids", "raw"), "rw"));
+            new Pair<>(
+                new ReentrantLock(),
+                new RandomAccessFile(File.createTempFile("ycsb_ids", "raw"), "rw"));
         this.files.put(collectionName, lockAndFile);
       } catch (IOException e) {
         throw new RuntimeException(e);
