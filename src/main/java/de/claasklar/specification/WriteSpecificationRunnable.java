@@ -1,36 +1,42 @@
 package de.claasklar.specification;
 
 import de.claasklar.database.Database;
+import de.claasklar.generation.ContextlessDocumentGenerator;
 import de.claasklar.idStore.IdStore;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.Document;
 import de.claasklar.primitives.document.IdLong;
-import de.claasklar.primitives.document.StringValue;
 import de.claasklar.primitives.span.Span;
-import java.util.Map;
 
 public class WriteSpecificationRunnable implements Runnable {
 
   private final CollectionName collectionName;
   private final IdLong idLong;
   private final Span span;
+  private final ContextlessDocumentGenerator generator;
   private final Database database;
   private final IdStore idStore;
   private Document document;
   private boolean done = false;
 
   public WriteSpecificationRunnable(
-      CollectionName collectionName, IdLong idLong, Span span, Database database, IdStore idStore) {
+      CollectionName collectionName,
+      IdLong idLong,
+      Span span,
+      ContextlessDocumentGenerator generator,
+      Database database,
+      IdStore idStore) {
     this.collectionName = collectionName;
     this.idLong = idLong;
     this.span = span;
+    this.generator = generator;
     this.database = database;
     this.idStore = idStore;
   }
 
   @Override
   public void run() {
-    var document = new Document(this.idLong.toId(), Map.of("ello", new StringValue("world")));
+    var document = generator.generateDocument(idLong.toId());
     var runSpan = new Span(this.getClass(), this.collectionName.toString() + this.idLong);
     try (var ignored = span.register(runSpan).enter()) {
       this.document = database.write(collectionName, document, span);

@@ -1,6 +1,7 @@
 package de.claasklar.specification;
 
 import de.claasklar.database.Database;
+import de.claasklar.generation.DocumentGenerator;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.Document;
 import de.claasklar.primitives.document.IdLong;
@@ -9,7 +10,6 @@ import de.claasklar.random.distribution.reference.ReferencesDistribution;
 import de.claasklar.util.MapCollector;
 import de.claasklar.util.Pair;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 
 public class PrimaryWriteSpecificationRunnable implements Runnable {
@@ -17,6 +17,7 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
   private final CollectionName collectionName;
   private final IdLong id;
   private final ReferencesDistribution[] referencesDistributions;
+  private final DocumentGenerator generator;
   private final Database database;
   private final ExecutorService executor;
   private boolean wasRun = false;
@@ -26,11 +27,13 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
       CollectionName collectionName,
       IdLong id,
       ReferencesDistribution[] referencesDistributions,
+      DocumentGenerator generator,
       Database database,
       ExecutorService executor) {
     this.collectionName = collectionName;
     this.id = id;
     this.referencesDistributions = referencesDistributions;
+    this.generator = generator;
     this.database = database;
     this.executor = executor;
   }
@@ -44,7 +47,7 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
               .map(dist -> new Pair<>(dist.getCollectionName(), dist.next(span)))
               .map(pair -> pair.mapSecond(runnable -> runnable.execute(executor)))
               .collect(new MapCollector<>());
-      var document = new Document(id.toId(), Collections.emptyMap());
+      var document = generator.generateDocument(id.toId(), references);
       try (var writeSpan =
           span.newChild(PrimaryWriteSpecificationRunnable.class, "writing document").enter()) {
         database.write(collectionName, document, writeSpan);

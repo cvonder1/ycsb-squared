@@ -10,6 +10,11 @@ public record Id(byte[] id) implements Value {
   }
 
   @Override
+  public Object toBasicType() {
+    return id;
+  }
+
+  @Override
   public boolean equals(Object obj) {
     if (this == obj) {
       return true;
