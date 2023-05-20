@@ -1,10 +1,16 @@
 package de.claasklar.specification;
 
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
+
 import de.claasklar.database.Database;
 import de.claasklar.generation.ContextDocumentGenerator;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
 import de.claasklar.random.distribution.reference.ReferencesDistribution;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.LongHistogram;
+import io.opentelemetry.api.trace.Tracer;
+import java.time.Clock;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -15,7 +21,10 @@ public class PrimaryWriteSpecification implements Specification {
   private final ContextDocumentGenerator generator;
   private final Database database;
   private final ExecutorService executor;
-
+  private final LongHistogram histogram;
+  private final Attributes attributes;
+  private final Tracer tracer;
+  private final Clock clock;
   private final AtomicLong currentId;
 
   public PrimaryWriteSpecification(
@@ -23,12 +32,21 @@ public class PrimaryWriteSpecification implements Specification {
       ReferencesDistribution[] referencesDistributions,
       ContextDocumentGenerator generator,
       Database database,
-      ExecutorService executor) {
+      ExecutorService executor,
+      LongHistogram histogram,
+      Tracer tracer,
+      Clock clock) {
     this.collectionName = collectionName;
     this.referencesDistributions = referencesDistributions;
     this.generator = generator;
     this.database = database;
     this.executor = executor;
+    this.histogram = histogram;
+    this.attributes =
+        Attributes.of(
+            stringKey("collection"), collectionName.toString(), stringKey("operation"), "WRITE");
+    this.tracer = tracer;
+    this.clock = clock;
     this.currentId = new AtomicLong(1);
   }
 
@@ -39,6 +57,10 @@ public class PrimaryWriteSpecification implements Specification {
         referencesDistributions,
         generator,
         database,
-        executor);
+        executor,
+        histogram,
+        attributes,
+        tracer,
+        clock);
   }
 }

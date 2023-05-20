@@ -3,44 +3,44 @@ package de.claasklar.random.distribution.document;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.Document;
 import de.claasklar.primitives.document.IdLong;
-import de.claasklar.primitives.span.Span;
 import de.claasklar.specification.WriteSpecificationRegistry;
+import io.opentelemetry.api.trace.Span;
 
 /** For new documents */
 public final class WriteDocumentRunnable implements DocumentRunnable {
 
   private final CollectionName collectionName;
   private final IdLong id;
-  private final Span span;
+  private final Span parentSpan;
   private final WriteSpecificationRegistry registry;
 
   private Document document;
   private boolean wasRun = false;
 
   public WriteDocumentRunnable(
-      CollectionName collectionName, IdLong id, Span span, WriteSpecificationRegistry registry) {
+      CollectionName collectionName,
+      IdLong id,
+      Span parentSpan,
+      WriteSpecificationRegistry registry) {
     this.collectionName = collectionName;
     this.id = id;
-    this.span = span;
+    this.parentSpan = parentSpan;
     this.registry = registry;
   }
 
   @Override
   public void run() {
-    try (var childSpan =
-        span.newChild(this.getClass(), collectionName.toString() + " - " + id).enter()) {
-      var writeSpec =
-          registry
-              .get(collectionName)
-              .orElseThrow(
-                  () ->
-                      new IllegalStateException(
-                          "Could not find WriteSpecificaiton for collection " + collectionName));
-      var runnable = writeSpec.runnable(this.id, childSpan);
-      runnable.run();
-      this.document = runnable.getDocument();
-      this.wasRun = true;
-    }
+    var writeSpec =
+        registry
+            .get(collectionName)
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "Could not find WriteSpecificaiton for collection " + collectionName));
+    var runnable = writeSpec.runnable(this.id, parentSpan);
+    runnable.run();
+    this.document = runnable.getDocument();
+    this.wasRun = true;
   }
 
   @Override

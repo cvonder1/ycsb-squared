@@ -15,4 +15,9 @@ public record CollectionName(String name) {
           "name contains illegal characters. [a-zA-Z0-9_] are legal characters");
     }
   }
+
+  @Override
+  public String toString() {
+    return name;
+  }
 }

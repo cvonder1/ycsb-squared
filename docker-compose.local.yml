@@ -1,0 +1,35 @@
+services:
+  jaeger:
+    image: "jaegertracing/all-in-one:1.45"
+    environment:
+      SPAN_STORAGE_TYPE: "badger"
+      BADGER_EPHEMERAL: "false"
+      BADGER_DIRECTORY_VALUE: "/badger/data"
+      BADGER_DIRECTORY_KEY: "/badger/key"
+      COLLECTOR_OTLP_ENABLED: true
+    ports:
+      # healthcheck admin
+      - "127.0.0.1:14271:14271/udp"
+      # healthcheck collector
+      - "127.0.0.1:14269:14269"
+      # gRPC for oltp traces
+      - "127.0.0.1:4317:4317"
+      # healthcheck ingester
+      - "127.0.0.1:14270:14270"
+      # ui
+      - "127.0.0.1:16686:16686"
+  prometheus:
+    image: "prom/prometheus:v2.44.0"
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - "./prometheus:/etc/prometheus:ro"
+  ycsb-squared:
+    build:
+      context: "."
+      dockerfile: "./Dockerfile"
+      tags:
+        - "ycsb-squared:latest"
+    depends_on:
+      - "jaeger"
+      - "prometheus"

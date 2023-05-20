@@ -3,7 +3,7 @@ package de.claasklar.database;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.Document;
 import de.claasklar.primitives.document.Id;
-import de.claasklar.primitives.span.Span;
+import io.opentelemetry.api.trace.Span;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;

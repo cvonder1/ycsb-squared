@@ -33,4 +33,9 @@ public record Id(byte[] id) implements Value {
   public int hashCode() {
     return Arrays.hashCode(this.id);
   }
+
+  @Override
+  public String toString() {
+    return Arrays.toString(id);
+  }
 }

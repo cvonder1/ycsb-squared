@@ -1,9 +1,9 @@
 package de.claasklar.random.distribution.reference;
 
 import de.claasklar.primitives.CollectionName;
-import de.claasklar.primitives.span.Span;
 import de.claasklar.random.distribution.document.DocumentDistribution;
 import de.claasklar.random.distribution.document.DocumentRunnable;
+import io.opentelemetry.api.trace.Span;
 
 public class ConstantNumberReferencesDistribution implements ReferencesDistribution {
 
