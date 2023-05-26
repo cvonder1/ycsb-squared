@@ -6,9 +6,9 @@ import de.claasklar.generation.ContextDocumentGeneratorBuilder;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.ArrayValue;
 import de.claasklar.primitives.document.ByteValue;
-import de.claasklar.primitives.document.Document;
+import de.claasklar.primitives.document.DoubleValue;
 import de.claasklar.primitives.document.Id;
-import de.claasklar.primitives.document.NumberValue;
+import de.claasklar.primitives.document.OurDocument;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -31,9 +31,9 @@ public class ContextDocumentGeneratorTest {
             .build();
     var documentId = randomId();
     var documents =
-        new Document[] {
-          new Document(randomId(), Collections.emptyMap()),
-          new Document(randomId(), Collections.emptyMap())
+        new OurDocument[] {
+          new OurDocument(randomId(), Collections.emptyMap()),
+          new OurDocument(randomId(), Collections.emptyMap())
         };
     // when
     var document =
@@ -41,14 +41,14 @@ public class ContextDocumentGeneratorTest {
     // then
     assertThat(document)
         .isEqualTo(
-            new Document(
+            new OurDocument(
                 documentId,
                 Map.of(
                     "test_ids",
                     new ArrayValue(
                         Arrays.asList(
-                            new ByteValue(documents[0].id().id()),
-                            new ByteValue(documents[1].id().id()))))));
+                            new ByteValue(documents[0].getId().id()),
+                            new ByteValue(documents[1].getId().id()))))));
   }
 
   @Test
@@ -56,12 +56,12 @@ public class ContextDocumentGeneratorTest {
     // given
     var generator =
         ContextDocumentGeneratorBuilder.builder()
-            .field("constant", () -> new NumberValue(5))
+            .field("constant", () -> new DoubleValue(5))
             .build();
     // when
     var document = generator.generateDocument(randomId(), Collections.emptyMap());
     // then
-    assertThat(document.values().get("constant")).isEqualTo(new NumberValue(5));
+    assertThat(document.getValues().get("constant")).isEqualTo(new DoubleValue(5));
   }
 
   private Id randomId() {

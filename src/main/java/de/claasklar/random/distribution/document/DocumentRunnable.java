@@ -1,6 +1,6 @@
 package de.claasklar.random.distribution.document;
 
-import de.claasklar.primitives.document.Document;
+import de.claasklar.primitives.document.OurDocument;
 
 public sealed interface DocumentRunnable extends Runnable
     permits ReadDocumentRunnable, WriteDocumentRunnable {
@@ -11,7 +11,7 @@ public sealed interface DocumentRunnable extends Runnable
    * @return Doucment, existing or not
    * @throws IllegalStateException if called before run
    */
-  Document getDocument();
+  OurDocument getDocument();
 
   /**
    * @return Boolean, indicating if it was run before

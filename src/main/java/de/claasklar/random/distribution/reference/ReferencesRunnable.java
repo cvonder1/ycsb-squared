@@ -1,6 +1,6 @@
 package de.claasklar.random.distribution.reference;
 
-import de.claasklar.primitives.document.Document;
+import de.claasklar.primitives.document.OurDocument;
 import de.claasklar.random.distribution.document.DocumentRunnable;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
@@ -15,7 +15,7 @@ public class ReferencesRunnable {
     this.documentRunnables = documentRunnables;
   }
 
-  public Document[] execute(Executor executor) {
+  public OurDocument[] execute(Executor executor) {
     if (wasRun) {
       throw new IllegalStateException("Cannot execute DocumentListFuture twice");
     }
@@ -27,7 +27,7 @@ public class ReferencesRunnable {
     var documents =
         Arrays.stream(documentRunnables)
             .map(DocumentRunnable::getDocument)
-            .toArray(Document[]::new);
+            .toArray(OurDocument[]::new);
     this.wasRun = true;
     return documents;
   }

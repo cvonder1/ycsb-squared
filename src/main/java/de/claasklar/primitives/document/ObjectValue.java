@@ -4,7 +4,8 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Set;
 
-public sealed interface ObjectValue extends Value permits NestedObjectValue, Document {
+public sealed interface ObjectValue extends Value permits NestedObjectValue, OurDocument {
+
   void put(String key, Value value);
 
   Set<Entry<String, Value>> entrySet();

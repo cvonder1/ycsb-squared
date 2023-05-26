@@ -1,6 +1,7 @@
 package de.claasklar;
 
-import de.claasklar.database.InMemoryDatabase;
+import com.mongodb.ConnectionString;
+import de.claasklar.database.mongodb.MongoDatabaseBuilder;
 import de.claasklar.generation.ContextDocumentGeneratorBuilder;
 import de.claasklar.generation.ContextlessDocumentGeneratorBuilder;
 import de.claasklar.generation.suppliers.Suppliers;
@@ -35,7 +36,7 @@ public class Main {
             .build()
             .histogramBuilder("transaction_duration")
             .ofLongs()
-            .setUnit("ms")
+            .setUnit("us")
             .setDescription(
                 "Tracks duration of transactions across all specifications. Attributes give more detail about collection and operation.")
             .build();
@@ -45,7 +46,13 @@ public class Main {
     var applicationSpan = tracer.spanBuilder(TelemetryConfig.APPLICATION_SPAN_NAME).startSpan();
 
     var idStore = new FileIdStore();
-    var database = new InMemoryDatabase();
+    var database =
+        MongoDatabaseBuilder.builder()
+            .databaseName(TelemetryConfig.version())
+            .connectionString(new ConnectionString("mongodb://mongodb"))
+            .openTelemetry(openTelemetry)
+            .tracer(tracer)
+            .build();
     var collectionName = new CollectionName("test_collection");
     var threadExecutor = Context.current().wrap(Executors.newFixedThreadPool(5));
     var bufferedThreadExecutor = Context.current().wrap(Executors.newFixedThreadPool(20));
@@ -104,12 +111,13 @@ public class Main {
       for (int i = 0; i < 100000; i++) {
         var runnable = primaryWriteSpecification.runnable();
         runnable.run();
-        ids.add(runnable.getDocument().id());
+        ids.add(runnable.getDocument().getId());
       }
       System.out.println(System.currentTimeMillis() - start);
       System.out.println("Total num ids: " + ids.size());
       System.out.println("version: " + TelemetryConfig.version());
     } finally {
+      database.close();
       threadExecutor.shutdown();
       bufferedThreadExecutor.shutdown();
     }

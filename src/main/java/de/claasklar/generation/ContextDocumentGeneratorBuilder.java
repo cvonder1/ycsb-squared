@@ -8,8 +8,8 @@ import de.claasklar.generation.pipes.Pipes.PipeBuilder;
 import de.claasklar.generation.suppliers.Suppliers;
 import de.claasklar.generation.suppliers.ValueSupplier;
 import de.claasklar.primitives.CollectionName;
-import de.claasklar.primitives.document.Document;
 import de.claasklar.primitives.document.ObjectValue;
+import de.claasklar.primitives.document.OurDocument;
 import de.claasklar.primitives.document.Value;
 import java.util.LinkedList;
 import java.util.List;
@@ -55,17 +55,18 @@ public class ContextDocumentGeneratorBuilder {
 
   public static class FieldPipeBuilder {
 
-    private Pipe<Map<CollectionName, Document[]>, ? extends Value> pipe;
+    private Pipe<Map<CollectionName, OurDocument[]>, ? extends Value> pipe;
 
-    public Pipe<Map<CollectionName, Document[]>, ? extends Value> selectCollection(
+    public Pipe<Map<CollectionName, OurDocument[]>, ? extends Value> selectCollection(
         CollectionName collectionName,
-        Function<PipeBuilder, Pipe<Map<CollectionName, Document[]>, ? extends Value>> pipeConfig) {
+        Function<PipeBuilder, Pipe<Map<CollectionName, OurDocument[]>, ? extends Value>>
+            pipeConfig) {
       var pipeBuilder = Pipes.selectCollection(collectionName);
       this.pipe = pipeConfig.apply(pipeBuilder);
       return this.pipe;
     }
 
-    public Pipe<Map<CollectionName, Document[]>, ? extends Value> build() {
+    public Pipe<Map<CollectionName, OurDocument[]>, ? extends Value> build() {
       return this.pipe;
     }
   }

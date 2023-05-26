@@ -7,10 +7,10 @@ import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.ArrayValue;
 import de.claasklar.primitives.document.BoolValue;
 import de.claasklar.primitives.document.ByteValue;
-import de.claasklar.primitives.document.Document;
+import de.claasklar.primitives.document.DoubleValue;
 import de.claasklar.primitives.document.NestedObjectValue;
-import de.claasklar.primitives.document.NumberValue;
 import de.claasklar.primitives.document.ObjectValue;
+import de.claasklar.primitives.document.OurDocument;
 import de.claasklar.primitives.document.StringValue;
 import de.claasklar.primitives.document.Value;
 import java.awt.geom.Arc2D.Float;
@@ -29,7 +29,7 @@ public class Pipes {
 
     private final ParseContextImpl parseContext = new ParseContextImpl();
 
-    private Pipe<Map<CollectionName, Document[]>, ?> pipe;
+    private Pipe<Map<CollectionName, OurDocument[]>, ?> pipe;
 
     public PipeBuilder(CollectionName collectionName) {
       this.pipe =
@@ -57,7 +57,7 @@ public class Pipes {
       return this;
     }
 
-    public Pipe<Map<CollectionName, Document[]>, ArrayValue> toArray() {
+    public Pipe<Map<CollectionName, OurDocument[]>, ArrayValue> toArray() {
       return this.pipe
           .pipe(input -> (List) input)
           .pipe(
@@ -68,7 +68,7 @@ public class Pipes {
               });
     }
 
-    public Pipe<Map<CollectionName, Document[]>, ObjectValue> toObject() {
+    public Pipe<Map<CollectionName, OurDocument[]>, ObjectValue> toObject() {
       return this.pipe
           .pipe(input -> (Map<String, ?>) input)
           .pipe(input -> (ObjectValue) toValue(input));
@@ -90,7 +90,7 @@ public class Pipes {
       } else if (o instanceof String) {
         return new StringValue((String) o);
       } else if (o instanceof Float) {
-        return new NumberValue((float) o);
+        return new DoubleValue((float) o);
       } else if (o instanceof Boolean) {
         return new BoolValue((boolean) o);
       } else {
@@ -98,8 +98,8 @@ public class Pipes {
       }
     }
 
-    public Pipe<Map<CollectionName, Document[]>, Object> build() {
-      return (Pipe<Map<CollectionName, Document[]>, Object>) pipe;
+    public Pipe<Map<CollectionName, OurDocument[]>, Object> build() {
+      return (Pipe<Map<CollectionName, OurDocument[]>, Object>) pipe;
     }
   }
 }

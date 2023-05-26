@@ -3,8 +3,8 @@ package de.claasklar.specification;
 import de.claasklar.database.Database;
 import de.claasklar.generation.DocumentGenerator;
 import de.claasklar.primitives.CollectionName;
-import de.claasklar.primitives.document.Document;
 import de.claasklar.primitives.document.IdLong;
+import de.claasklar.primitives.document.OurDocument;
 import de.claasklar.random.distribution.reference.ReferencesDistribution;
 import de.claasklar.util.MapCollector;
 import de.claasklar.util.Pair;
@@ -31,7 +31,7 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
   private final Tracer tracer;
   private final Clock clock;
   private boolean wasRun = false;
-  private Document document;
+  private OurDocument document;
 
   public PrimaryWriteSpecificationRunnable(
       CollectionName collectionName,
@@ -71,7 +71,7 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
       database.write(collectionName, document, span);
       this.document = document;
       this.wasRun = true;
-      histogram.record(start.until(clock.instant(), ChronoUnit.MILLIS), attributes);
+      histogram.record(start.until(clock.instant(), ChronoUnit.MICROS), attributes);
     } catch (Exception e) {
       span.setStatus(StatusCode.ERROR, "Could not create primary document with the id " + id);
       span.recordException(e);
@@ -84,7 +84,7 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
     return this.wasRun;
   }
 
-  public Document getDocument() {
+  public OurDocument getDocument() {
     if (!wasRun) {
       throw new IllegalStateException("cannot access document before runnable was run");
     }

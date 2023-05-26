@@ -1,8 +1,8 @@
 package de.claasklar.random.distribution.document;
 
 import de.claasklar.primitives.CollectionName;
-import de.claasklar.primitives.document.Document;
 import de.claasklar.primitives.document.IdLong;
+import de.claasklar.primitives.document.OurDocument;
 import de.claasklar.specification.WriteSpecificationRegistry;
 import io.opentelemetry.api.trace.Span;
 
@@ -14,7 +14,7 @@ public final class WriteDocumentRunnable implements DocumentRunnable {
   private final Span parentSpan;
   private final WriteSpecificationRegistry registry;
 
-  private Document document;
+  private OurDocument document;
   private boolean wasRun = false;
 
   public WriteDocumentRunnable(
@@ -44,9 +44,9 @@ public final class WriteDocumentRunnable implements DocumentRunnable {
   }
 
   @Override
-  public Document getDocument() {
+  public OurDocument getDocument() {
     if (!wasRun) {
-      throw new IllegalStateException("Cannot get Document before Runnable was run");
+      throw new IllegalStateException("Cannot get OurDocument before Runnable was run");
     }
     return this.document;
   }

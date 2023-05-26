@@ -4,8 +4,8 @@ import de.claasklar.database.Database;
 import de.claasklar.generation.ContextlessDocumentGenerator;
 import de.claasklar.idStore.IdStore;
 import de.claasklar.primitives.CollectionName;
-import de.claasklar.primitives.document.Document;
 import de.claasklar.primitives.document.IdLong;
+import de.claasklar.primitives.document.OurDocument;
 import de.claasklar.util.TelemetryUtil;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongHistogram;
@@ -28,7 +28,7 @@ public class WriteSpecificationRunnable implements Runnable {
   private final Attributes attributes;
   private final Tracer tracer;
   private final Clock clock;
-  private Document document;
+  private OurDocument document;
   private boolean done = false;
 
   public WriteSpecificationRunnable(
@@ -60,10 +60,10 @@ public class WriteSpecificationRunnable implements Runnable {
     var document = generator.generateDocument(idLong.toId());
     var runSpan = newSpan();
     try (var ignored = parentSpan.makeCurrent()) {
-      this.document = database.write(collectionName, document, parentSpan);
+      this.document = database.write(collectionName, document, runSpan);
       this.done = true;
       this.idStore.store(collectionName, idLong);
-      histogram.record(start.until(clock.instant(), ChronoUnit.MILLIS), attributes);
+      histogram.record(start.until(clock.instant(), ChronoUnit.MICROS), attributes);
     } catch (Exception e) {
       runSpan.setStatus(StatusCode.ERROR);
       runSpan.recordException(e);
@@ -80,7 +80,7 @@ public class WriteSpecificationRunnable implements Runnable {
     return this.idLong;
   }
 
-  public Document getDocument() {
+  public OurDocument getDocument() {
     if (!done) {
       throw new IllegalStateException("cannot access document before runnable is finished");
     }

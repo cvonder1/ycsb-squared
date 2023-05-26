@@ -1,8 +1,8 @@
 package de.claasklar.generation.suppliers;
 
 import de.claasklar.primitives.document.ArrayValue;
+import de.claasklar.primitives.document.DoubleValue;
 import de.claasklar.primitives.document.NestedObjectValue;
-import de.claasklar.primitives.document.NumberValue;
 import de.claasklar.primitives.document.StringValue;
 import java.util.HashMap;
 import java.util.Map;
@@ -15,7 +15,7 @@ public class Suppliers {
   private static final Random random = new Random();
 
   public ValueSupplier uniformIntSupplier(int lower, int upper) {
-    return () -> new NumberValue(random.nextInt(lower, upper));
+    return () -> new DoubleValue(random.nextInt(lower, upper));
   }
 
   public ValueSupplier uniformLengthStringSupplier(int lower, int upper) {

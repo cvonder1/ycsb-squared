@@ -2,8 +2,8 @@ package de.claasklar.random.distribution.document;
 
 import de.claasklar.database.Database;
 import de.claasklar.primitives.CollectionName;
-import de.claasklar.primitives.document.Document;
 import de.claasklar.primitives.document.IdLong;
+import de.claasklar.primitives.document.OurDocument;
 import de.claasklar.util.TelemetryUtil;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
@@ -19,7 +19,7 @@ public final class ReadDocumentRunnable implements DocumentRunnable {
   private final Database database;
   private final Tracer tracer;
   private boolean wasRun = false;
-  private Document document;
+  private OurDocument document;
 
   public ReadDocumentRunnable(
       CollectionName collectionName, IdLong id, Span parentSpan, Database database, Tracer tracer) {
@@ -31,7 +31,7 @@ public final class ReadDocumentRunnable implements DocumentRunnable {
   }
 
   @Override
-  public Document getDocument() {
+  public OurDocument getDocument() {
     if (!wasRun) {
       throw new IllegalStateException("ReadDocumentRunnable must first be run");
     }
@@ -52,7 +52,7 @@ public final class ReadDocumentRunnable implements DocumentRunnable {
     try (var ignored = runSpan.makeCurrent()) {
       this.document =
           database
-              .read(this.collectionName, this.id.toId(), this.parentSpan)
+              .read(this.collectionName, this.id.toId(), runSpan)
               .orElseThrow(() -> new NoSuchDocumentException(this.collectionName, this.id.toId()));
       this.wasRun = true;
     } catch (Exception e) {
@@ -70,7 +70,7 @@ public final class ReadDocumentRunnable implements DocumentRunnable {
 
   private Span newSpan() {
     return tracer
-        .spanBuilder("Read existing document")
+        .spanBuilder("read existing document")
         .setParent(Context.current().with(parentSpan))
         .setAllAttributes(new TelemetryUtil().attributes(collectionName, id))
         .startSpan();

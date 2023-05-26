@@ -1,6 +1,6 @@
 package de.claasklar.primitives.document;
 
-public record NumberValue(float value) implements Value {
+public record DoubleValue(double value) implements Value {
 
   @Override
   public Object toBasicType() {

@@ -24,6 +24,8 @@ services:
       - "127.0.0.1:9090:9090"
     volumes:
       - "./prometheus:/etc/prometheus:ro"
+  mongodb:
+    image: "mongodb/mongodb-community-server:6.0.4-ubi8-20230524T062919Z"
   ycsb-squared:
     build:
       context: "."
@@ -33,3 +35,4 @@ services:
     depends_on:
       - "jaeger"
       - "prometheus"
+      - "mongodb"
