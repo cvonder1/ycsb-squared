@@ -12,9 +12,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ExistingDocumentDistribution implements DocumentDistribution {
 
+  private final static Logger logger = LoggerFactory.getLogger(ExistingDocumentDistribution.class);
   private final Queue<IdLong> queue;
   private final int bufferSize;
   private final AtomicInteger currentSize;
@@ -52,7 +55,8 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
     }
     IdLong nextId = queue.poll();
 
-    for (int i = 0; i < 10 && nextId == null; i++) {
+    for (int i = 0; i < 20 && nextId == null; i++) {
+      logger.atWarn().log("No id in queue for the {}-nth time for the collection {}", i, collectionName);
       try {
         Thread.sleep(100);
       } catch (InterruptedException e) {

@@ -1,6 +1,9 @@
 package de.claasklar;
 
 import com.mongodb.ConnectionString;
+import com.mongodb.ReadConcern;
+import com.mongodb.ReadPreference;
+import com.mongodb.WriteConcern;
 import de.claasklar.database.mongodb.MongoDatabaseBuilder;
 import de.claasklar.generation.ContextDocumentGeneratorBuilder;
 import de.claasklar.generation.ContextlessDocumentGeneratorBuilder;
@@ -21,6 +24,7 @@ import io.opentelemetry.context.Context;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.Executors;
 import org.slf4j.LoggerFactory;
 
@@ -46,12 +50,18 @@ public class Main {
     var applicationSpan = tracer.spanBuilder(TelemetryConfig.APPLICATION_SPAN_NAME).startSpan();
 
     var idStore = new FileIdStore();
+    var allCollections = List.of(new CollectionName("test_collection"), new CollectionName("primary"));
     var database =
         MongoDatabaseBuilder.builder()
             .databaseName(TelemetryConfig.version())
             .connectionString(new ConnectionString("mongodb://mongodb"))
             .openTelemetry(openTelemetry)
             .tracer(tracer)
+            .collections(allCollections)
+            .databaseReadConcern(ReadConcern.DEFAULT)
+            .databaseWriteConcern(WriteConcern.JOURNALED)
+            .databaseReadPreference(ReadPreference.nearest())
+            .collectionReadConcern(new CollectionName("test_collection"), ReadConcern.AVAILABLE)
             .build();
     var collectionName = new CollectionName("test_collection");
     var threadExecutor = Context.current().wrap(Executors.newFixedThreadPool(5));
@@ -73,13 +83,13 @@ public class Main {
             Clock.systemUTC());
     registry.register(writeSpec);
 
-    var idDistribution = new UniformIdDistribution(500000, new StdRandomNumberGenerator());
+    var idDistribution = new UniformIdDistribution(5000, new StdRandomNumberGenerator());
     var documentDistribution =
         new SimpleDocumentDistribution(
             collectionName, idDistribution, idStore, database, registry, tracer);
     var existingDocumentDistribution =
         new ExistingDocumentDistribution(
-            500, documentDistribution, database, bufferedThreadExecutor, tracer);
+            50, documentDistribution, database, bufferedThreadExecutor, tracer);
     var referencesDistribution =
         new ConstantNumberReferencesDistribution(5, existingDocumentDistribution);
 
@@ -108,7 +118,7 @@ public class Main {
 
     try {
       long start = System.currentTimeMillis();
-      for (int i = 0; i < 100000; i++) {
+      for (int i = 0; i < 1000; i++) {
         var runnable = primaryWriteSpecification.runnable();
         runnable.run();
         ids.add(runnable.getDocument().getId());
@@ -116,12 +126,14 @@ public class Main {
       System.out.println(System.currentTimeMillis() - start);
       System.out.println("Total num ids: " + ids.size());
       System.out.println("version: " + TelemetryConfig.version());
+    } catch(Exception e) {
+      applicationSpan.recordException(e);
     } finally {
-      database.close();
       threadExecutor.shutdown();
       bufferedThreadExecutor.shutdown();
+      applicationSpan.end();
+      database.close();
+      Thread.sleep(Duration.ofSeconds(10));
     }
-    applicationSpan.end();
-    Thread.sleep(Duration.ofSeconds(10));
   }
 }

@@ -4,6 +4,7 @@ import static com.mongodb.client.model.Filters.eq;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoCollection;
 import de.claasklar.database.Database;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.Id;
@@ -17,27 +18,28 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.Optional;
 
 public class MongoDatabase implements Database, AutoCloseable {
 
   private final MongoClient client;
-  private final com.mongodb.client.MongoDatabase database;
   private final Tracer tracer;
   private final LongHistogram histogram;
   private final Clock clock;
+  private final Map<CollectionName, MongoCollection<OurDocument>> collections;
 
   MongoDatabase(
       MongoClient client,
-      com.mongodb.client.MongoDatabase database,
+      Map<CollectionName, MongoCollection<OurDocument>> collections,
       Tracer tracer,
       LongHistogram histogram,
       Clock clock) {
     this.client = client;
-    this.database = database;
     this.tracer = tracer;
     this.histogram = histogram;
     this.clock = clock;
+    this.collections = collections;
   }
 
   @Override
@@ -54,8 +56,7 @@ public class MongoDatabase implements Database, AutoCloseable {
             .startSpan();
     try (var ignored = writeSpan.makeCurrent()) {
       var start = clock.instant();
-
-      database.getCollection(collectionName.name(), OurDocument.class).insertOne(document);
+      collections.get(collectionName).insertOne(document);
       histogram.record(
           start.until(clock.instant(), ChronoUnit.MICROS),
           Attributes.of(
@@ -81,8 +82,7 @@ public class MongoDatabase implements Database, AutoCloseable {
     try (var ignored = readSpan.makeCurrent()) {
       var start = clock.instant();
       var document =
-          database
-              .getCollection(collectionName.name(), OurDocument.class)
+          collections.get(collectionName)
               .find(eq("_id", id))
               .first();
       histogram.record(

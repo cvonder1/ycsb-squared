@@ -17,9 +17,12 @@ import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PrimaryWriteSpecificationRunnable implements Runnable {
 
+  private static final Logger logger = LoggerFactory.getLogger(PrimaryWriteSpecificationRunnable.class);
   private final CollectionName collectionName;
   private final IdLong id;
   private final ReferencesDistribution[] referencesDistributions;
@@ -75,6 +78,7 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
     } catch (Exception e) {
       span.setStatus(StatusCode.ERROR, "Could not create primary document with the id " + id);
       span.recordException(e);
+      throw e;
     } finally {
       span.end();
     }
