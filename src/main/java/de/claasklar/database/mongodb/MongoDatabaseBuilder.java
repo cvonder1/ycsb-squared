@@ -33,7 +33,6 @@ public class MongoDatabaseBuilder {
   private WriteConcern databaseWriteConcern;
   private List<CollectionName> collections;
 
-
   private MongoDatabaseBuilder() {
     collectionsReadPreferences = new HashMap<>();
     collectionsReadConcerns = new HashMap<>();
@@ -64,17 +63,20 @@ public class MongoDatabaseBuilder {
     return this;
   }
 
-  public MongoDatabaseBuilder collectionReadPreference(CollectionName collectionName, ReadPreference readPreference) {
+  public MongoDatabaseBuilder collectionReadPreference(
+      CollectionName collectionName, ReadPreference readPreference) {
     collectionsReadPreferences.put(collectionName, readPreference);
     return this;
   }
 
-  public MongoDatabaseBuilder collectionReadConcern(CollectionName collectionName, ReadConcern readConcern) {
+  public MongoDatabaseBuilder collectionReadConcern(
+      CollectionName collectionName, ReadConcern readConcern) {
     collectionsReadConcerns.put(collectionName, readConcern);
     return this;
   }
 
-  public MongoDatabaseBuilder collectionWriteConcerns(CollectionName collectionName, WriteConcern writeConcern) {
+  public MongoDatabaseBuilder collectionWriteConcerns(
+      CollectionName collectionName, WriteConcern writeConcern) {
     collectionsWriteConcerns.put(collectionName, writeConcern);
     return this;
   }
@@ -106,30 +108,38 @@ public class MongoDatabaseBuilder {
     var client = MongoClients.create(connectionString);
     var database =
         client.getDatabase(databaseName).withCodecRegistry(new OurDocumentCodecRegistry());
-    if(databaseReadPreference != null) {
+    if (databaseReadPreference != null) {
       database = database.withReadPreference(databaseReadPreference);
     }
-    if(databaseReadConcern != null) {
+    if (databaseReadConcern != null) {
       database = database.withReadConcern(databaseReadConcern);
     }
-    if(databaseWriteConcern != null) {
+    if (databaseWriteConcern != null) {
       database = database.withWriteConcern(databaseWriteConcern);
     }
     com.mongodb.client.MongoDatabase finalDatabase = database;
-    var mongoCollections = collections.stream()
-      .map(collectionName -> {
-        var collection = finalDatabase.getCollection(collectionName.name(), OurDocument.class);
-        if (collectionsReadPreferences.containsKey(collectionName)) {
-          collection = collection.withReadPreference(collectionsReadPreferences.get(collectionName));
-        }
-        if (collectionsReadConcerns.containsKey(collectionName)) {
-          collection = collection.withReadConcern(collectionsReadConcerns.get(collectionName));
-        }
-        if (collectionsWriteConcerns.containsKey(collectionName)) {
-          collection = collection.withWriteConcern(collectionsWriteConcerns.get(collectionName));
-        }
-        return new Pair<>(collectionName, collection);
-      }).collect(new MapCollector<>());
+    var mongoCollections =
+        collections.stream()
+            .map(
+                collectionName -> {
+                  var collection =
+                      finalDatabase.getCollection(collectionName.name(), OurDocument.class);
+                  if (collectionsReadPreferences.containsKey(collectionName)) {
+                    collection =
+                        collection.withReadPreference(
+                            collectionsReadPreferences.get(collectionName));
+                  }
+                  if (collectionsReadConcerns.containsKey(collectionName)) {
+                    collection =
+                        collection.withReadConcern(collectionsReadConcerns.get(collectionName));
+                  }
+                  if (collectionsWriteConcerns.containsKey(collectionName)) {
+                    collection =
+                        collection.withWriteConcern(collectionsWriteConcerns.get(collectionName));
+                  }
+                  return new Pair<>(collectionName, collection);
+                })
+            .collect(new MapCollector<>());
 
     var histogram =
         openTelemetry

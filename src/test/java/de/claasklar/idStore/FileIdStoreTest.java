@@ -35,6 +35,16 @@ public class FileIdStoreTest {
   }
 
   @Test
+  public void testStoreShouldStoreIdWithGaps() {
+    //given
+    var name = new CollectionName("test");
+    //when
+    testSubject.store(name, 788);
+    //then
+    assertThat(testSubject.exists(name, 788)).isTrue();
+  }
+
+  @Test
   public void testStoreIdsConcurrently() throws InterruptedException {
     // given
     var name = new CollectionName("test");

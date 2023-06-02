@@ -28,4 +28,11 @@ public class TelemetryUtil {
         .put("id", id.toString())
         .build();
   }
+
+  public Attributes executeQueryAttributes(CollectionName collectionName, String queryName) {
+    return Attributes.builder()
+        .put("collection", collectionName.toString())
+        .put("query", queryName)
+        .build();
+  }
 }

@@ -1,5 +1,8 @@
 package de.claasklar;
 
+import static com.mongodb.client.model.Filters.*;
+import static de.claasklar.util.BsonUtil.asOurBson;
+
 import com.mongodb.ConnectionString;
 import com.mongodb.ReadConcern;
 import com.mongodb.ReadPreference;
@@ -7,9 +10,13 @@ import com.mongodb.WriteConcern;
 import de.claasklar.database.mongodb.MongoDatabaseBuilder;
 import de.claasklar.generation.ContextDocumentGeneratorBuilder;
 import de.claasklar.generation.ContextlessDocumentGeneratorBuilder;
-import de.claasklar.generation.suppliers.Suppliers;
+import de.claasklar.generation.SameFindQueryGenerator;
+import de.claasklar.generation.VariableFindGenerator;
+import de.claasklar.generation.suppliers.ValueSuppliers;
+import de.claasklar.generation.suppliers.VariableSuppliers;
 import de.claasklar.idStore.FileIdStore;
 import de.claasklar.primitives.CollectionName;
+import de.claasklar.primitives.query.FindOptions;
 import de.claasklar.random.distribution.StdRandomNumberGenerator;
 import de.claasklar.random.distribution.document.ExistingDocumentDistribution;
 import de.claasklar.random.distribution.document.SimpleDocumentDistribution;
@@ -17,6 +24,7 @@ import de.claasklar.random.distribution.id.UniformIdDistribution;
 import de.claasklar.random.distribution.reference.ConstantNumberReferencesDistribution;
 import de.claasklar.random.distribution.reference.ReferencesDistribution;
 import de.claasklar.specification.PrimaryWriteSpecification;
+import de.claasklar.specification.ReadSpecification;
 import de.claasklar.specification.WriteSpecification;
 import de.claasklar.specification.WriteSpecificationRegistry;
 import de.claasklar.util.TelemetryConfig;
@@ -26,9 +34,17 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.Executors;
+
+import org.bson.BsonArray;
+import org.bson.BsonDocument;
+import org.bson.BsonString;
+import org.bson.codecs.BsonValueCodec;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Main {
+
+  private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
   public static void main(String[] args) throws InterruptedException {
     var openTelemetry = TelemetryConfig.buildOpenTelemetry();
@@ -50,7 +66,8 @@ public class Main {
     var applicationSpan = tracer.spanBuilder(TelemetryConfig.APPLICATION_SPAN_NAME).startSpan();
 
     var idStore = new FileIdStore();
-    var allCollections = List.of(new CollectionName("test_collection"), new CollectionName("primary"));
+    var allCollections =
+        List.of(new CollectionName("test_collection"), new CollectionName("primary"));
     var database =
         MongoDatabaseBuilder.builder()
             .databaseName(TelemetryConfig.version())
@@ -70,7 +87,7 @@ public class Main {
     var registry = new WriteSpecificationRegistry();
     var documentGenerator =
         ContextlessDocumentGeneratorBuilder.builder()
-            .field("number", (Suppliers s) -> s.uniformIntSupplier(0, 1000))
+            .field("number", (ValueSuppliers s) -> s.uniformIntSupplier(0, 1000))
             .build();
     var writeSpec =
         new WriteSpecification(
@@ -111,6 +128,38 @@ public class Main {
             database,
             threadExecutor,
             transactionDurationHistogram,
+                idStore,
+            tracer,
+            Clock.systemUTC());
+
+    var queryGenerator =
+        new SameFindQueryGenerator(
+            new CollectionName("test_collection"),
+            FindOptions.find().filter(asOurBson(gt("number", 900))));
+    var readSpecification =
+        new ReadSpecification(
+            "big_number_query",
+            queryGenerator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var variableSuppliers = new VariableSuppliers(idStore);
+    var idQueryGenerator =
+        new VariableFindGenerator(
+            new CollectionName("primary"),
+            FindOptions.find().filter(asOurBson(expr(new BsonDocument("$eq", new BsonArray(List.of(new BsonString("$_id"), new BsonString("$$primary_id"))))))),
+            variableSuppliers.existingId(
+                "primary_id",
+                new CollectionName("primary"),
+                new UniformIdDistribution(1000, new StdRandomNumberGenerator())));
+    var findOneReadSpecification =
+        new ReadSpecification(
+            "find_one_primary",
+            idQueryGenerator,
+            database,
+            transactionDurationHistogram,
             tracer,
             Clock.systemUTC());
 
@@ -120,13 +169,21 @@ public class Main {
       long start = System.currentTimeMillis();
       for (int i = 0; i < 1000; i++) {
         var runnable = primaryWriteSpecification.runnable();
+        logger.atDebug().log("running primaryWriteSpecification");
         runnable.run();
         ids.add(runnable.getDocument().getId());
+        logger.atDebug().log("running readRunnable");
+        var readRunnable = readSpecification.runnable();
+        readRunnable.run();
+        if (i > 800) {
+          logger.atDebug().log("running findOneReadSpecification");
+          findOneReadSpecification.runnable().run();
+        }
       }
       System.out.println(System.currentTimeMillis() - start);
       System.out.println("Total num ids: " + ids.size());
       System.out.println("version: " + TelemetryConfig.version());
-    } catch(Exception e) {
+    } catch (Exception e) {
       applicationSpan.recordException(e);
     } finally {
       threadExecutor.shutdown();

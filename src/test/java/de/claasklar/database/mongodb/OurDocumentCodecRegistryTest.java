@@ -5,29 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 
 import de.claasklar.database.mongodb.codec.OurDocumentCodecRegistry;
-import de.claasklar.primitives.document.ArrayValue;
-import de.claasklar.primitives.document.BoolValue;
-import de.claasklar.primitives.document.ByteValue;
-import de.claasklar.primitives.document.DoubleValue;
-import de.claasklar.primitives.document.Id;
-import de.claasklar.primitives.document.IdLong;
-import de.claasklar.primitives.document.NestedObjectValue;
-import de.claasklar.primitives.document.OurDocument;
-import de.claasklar.primitives.document.StringValue;
+import de.claasklar.primitives.document.*;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import org.bson.BsonArray;
-import org.bson.BsonBinary;
-import org.bson.BsonBoolean;
-import org.bson.BsonDocument;
-import org.bson.BsonDocumentWrapper;
-import org.bson.BsonDouble;
-import org.bson.BsonElement;
-import org.bson.BsonObjectId;
-import org.bson.BsonString;
+import org.bson.*;
 import org.bson.codecs.DecoderContext;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
@@ -119,6 +103,26 @@ public class OurDocumentCodecRegistryTest {
     var result = BsonDocumentWrapper.asBsonDocument(ourDocument, testSubject);
     // then
     assertThat(result).contains(entry("byte", new BsonBinary(new byte[] {1, 2, 3, 4})));
+  }
+
+  @Test
+  public void testToBsonDocumentShouldInsertNullValue() {
+    // given
+    var ourDocument = new OurDocument(randomId(), Map.of("null", NullValue.VALUE));
+    // when
+    var result = BsonDocumentWrapper.asBsonDocument(ourDocument, testSubject);
+    // then
+    assertThat(result).contains(entry("null", BsonNull.VALUE));
+  }
+
+  @Test
+  public void testToBsonDocumentShouldInsertInt32() {
+    // given
+    var ourDocument = new OurDocument(randomId(), Map.of("int", new IntValue(34)));
+    // when
+    var result = BsonDocumentWrapper.asBsonDocument(ourDocument, testSubject);
+    // then
+    assertThat(result).contains(entry("int", new BsonInt32(34)));
   }
 
   @Test
@@ -288,6 +292,62 @@ public class OurDocumentCodecRegistryTest {
     assertThat(result).isNotNull();
     assertThat(result.getValues())
         .contains(entry("doc", new NestedObjectValue(Map.of("double", new DoubleValue(2.5d)))));
+  }
+
+  @Test
+  public void testDecodeShouldInsertNullValue() {
+    // given
+    var bson =
+        new BsonDocument(
+            (List.of(
+                new BsonElement("_id", randomBsonObjectId()),
+                new BsonElement("null", BsonNull.VALUE))));
+    // when
+    var result =
+        testSubject
+            .get(OurDocument.class)
+            .decode(bson.asBsonReader(), DecoderContext.builder().build());
+    // then
+    assertThat(result).isNotNull();
+    assertThat(result.getValues()).contains(entry("null", NullValue.VALUE));
+  }
+
+  @Test
+  public void testDecodeShouldInsertNullValueIntoNestedObjectValue() {
+    // given
+    var bson =
+        new BsonDocument(
+            Arrays.asList(
+                new BsonElement("_id", randomBsonObjectId()),
+                new BsonElement("null", BsonNull.VALUE),
+                new BsonElement("doc", new BsonDocument("double", new BsonDouble(2.5d)))));
+    // when
+    var result =
+        testSubject
+            .get(NestedObjectValue.class)
+            .decode(bson.asBsonReader(), DecoderContext.builder().build());
+    // then
+    assertThat(result).isNotNull();
+    assertThat(result.entrySet())
+        .contains(entry("doc", new NestedObjectValue(Map.of("double", new DoubleValue(2.5d)))));
+    assertThat(result.entrySet()).contains(entry("null", NullValue.VALUE));
+  }
+
+  @Test
+  public void testDecodeShouldInsertIntValue() {
+    // given
+    var bson =
+        new BsonDocument(
+            List.of(
+                new BsonElement("_id", randomBsonObjectId()),
+                new BsonElement("num", new BsonInt32(506))));
+    // when
+    var result =
+        testSubject
+            .get(OurDocument.class)
+            .decode(bson.asBsonReader(), DecoderContext.builder().build());
+    // then
+    assertThat(result.entrySet()).contains(entry("num", new IntValue(506)));
   }
 
   private Id randomId() {

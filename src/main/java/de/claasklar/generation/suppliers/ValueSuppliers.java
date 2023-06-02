@@ -10,7 +10,7 @@ import java.util.Random;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class Suppliers {
+public class ValueSuppliers {
 
   private static final Random random = new Random();
 

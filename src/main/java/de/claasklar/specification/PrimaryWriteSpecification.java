@@ -4,6 +4,7 @@ import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import de.claasklar.database.Database;
 import de.claasklar.generation.ContextDocumentGenerator;
+import de.claasklar.idStore.IdStore;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
 import de.claasklar.random.distribution.reference.ReferencesDistribution;
@@ -22,6 +23,7 @@ public class PrimaryWriteSpecification implements Specification {
   private final Database database;
   private final ExecutorService executor;
   private final LongHistogram histogram;
+  private final IdStore idStore;
   private final Attributes attributes;
   private final Tracer tracer;
   private final Clock clock;
@@ -34,6 +36,7 @@ public class PrimaryWriteSpecification implements Specification {
       Database database,
       ExecutorService executor,
       LongHistogram histogram,
+      IdStore idStore,
       Tracer tracer,
       Clock clock) {
     this.collectionName = collectionName;
@@ -42,6 +45,7 @@ public class PrimaryWriteSpecification implements Specification {
     this.database = database;
     this.executor = executor;
     this.histogram = histogram;
+    this.idStore = idStore;
     this.attributes =
         Attributes.of(
             stringKey("collection"), collectionName.toString(), stringKey("operation"), "WRITE");
@@ -60,6 +64,7 @@ public class PrimaryWriteSpecification implements Specification {
         executor,
         histogram,
         attributes,
+        idStore,
         tracer,
         clock);
   }

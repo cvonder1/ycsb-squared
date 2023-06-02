@@ -1,12 +1,6 @@
 package de.claasklar.database.mongodb.codec;
 
-import de.claasklar.primitives.document.ArrayValue;
-import de.claasklar.primitives.document.BoolValue;
-import de.claasklar.primitives.document.ByteValue;
-import de.claasklar.primitives.document.DoubleValue;
-import de.claasklar.primitives.document.NestedObjectValue;
-import de.claasklar.primitives.document.StringValue;
-import de.claasklar.primitives.document.Value;
+import de.claasklar.primitives.document.*;
 import java.util.Map;
 import org.bson.BsonType;
 
@@ -27,7 +21,12 @@ public class BsonTypeValueClassMap {
               BsonType.DOUBLE,
               DoubleValue.class,
               BsonType.DOCUMENT,
-              NestedObjectValue.class));
+              NestedObjectValue.class,
+              BsonType.NULL,
+              NullValue.class,
+              BsonType.OBJECT_ID,
+              Id.class,
+                  BsonType.INT32, IntValue.class));
 
   private final Map<BsonType, Class<?>> map;
 

@@ -5,7 +5,8 @@ RUN apt-get update --yes && \
 
 WORKDIR /build
 COPY gradle/wrapper/ ./gradle/wrapper/
-COPY gradlew settings.gradle build.gradle ./
+COPY settings.gradle build.gradle ./
+COPY --chmod=744 gradlew ./
 
 RUN mkdir -p src/main/java/de/claasklar && \
     echo "package de.claasklar; public class Main {public static void main(String[] args){}}" && \

@@ -5,8 +5,8 @@ import de.claasklar.generation.inserters.InserterFactory;
 import de.claasklar.generation.pipes.Pipe;
 import de.claasklar.generation.pipes.Pipes;
 import de.claasklar.generation.pipes.Pipes.PipeBuilder;
-import de.claasklar.generation.suppliers.Suppliers;
 import de.claasklar.generation.suppliers.ValueSupplier;
+import de.claasklar.generation.suppliers.ValueSuppliers;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.ObjectValue;
 import de.claasklar.primitives.document.OurDocument;
@@ -41,8 +41,8 @@ public class ContextDocumentGeneratorBuilder {
   }
 
   public ContextDocumentGeneratorBuilder field(
-      String key, Function<Suppliers, ValueSupplier> config) {
-    return this.field(key, config.apply(new Suppliers()));
+      String key, Function<ValueSuppliers, ValueSupplier> config) {
+    return this.field(key, config.apply(new ValueSuppliers()));
   }
 
   public ContextDocumentGeneratorBuilder fieldFromPipe(

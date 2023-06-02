@@ -2,6 +2,7 @@ package de.claasklar.specification;
 
 import de.claasklar.database.Database;
 import de.claasklar.generation.DocumentGenerator;
+import de.claasklar.idStore.IdStore;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
 import de.claasklar.primitives.document.OurDocument;
@@ -17,12 +18,9 @@ import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class PrimaryWriteSpecificationRunnable implements Runnable {
 
-  private static final Logger logger = LoggerFactory.getLogger(PrimaryWriteSpecificationRunnable.class);
   private final CollectionName collectionName;
   private final IdLong id;
   private final ReferencesDistribution[] referencesDistributions;
@@ -33,6 +31,7 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
   private final Attributes attributes;
   private final Tracer tracer;
   private final Clock clock;
+  private final IdStore idStore;
   private boolean wasRun = false;
   private OurDocument document;
 
@@ -45,6 +44,7 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
       ExecutorService executor,
       LongHistogram histogram,
       Attributes attributes,
+      IdStore idStore,
       Tracer tracer,
       Clock clock) {
     this.collectionName = collectionName;
@@ -55,6 +55,7 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
     this.executor = executor;
     this.histogram = histogram;
     this.attributes = attributes;
+    this.idStore = idStore;
     this.tracer = tracer;
     this.clock = clock;
   }
@@ -72,6 +73,7 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
               .collect(new MapCollector<>());
       var document = generator.generateDocument(id.toId(), references);
       database.write(collectionName, document, span);
+      idStore.store(collectionName, id);
       this.document = document;
       this.wasRun = true;
       histogram.record(start.until(clock.instant(), ChronoUnit.MICROS), attributes);

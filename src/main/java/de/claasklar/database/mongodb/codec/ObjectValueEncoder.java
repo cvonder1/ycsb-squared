@@ -35,11 +35,8 @@ public class ObjectValueEncoder implements Encoder<ObjectValue> {
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   private void writeValue(BsonWriter writer, Object value, EncoderContext encoderContext) {
-    if (value == null) {
-      writer.writeNull();
-    } else {
-      Codec codec = codecRegistry.get(value.getClass());
-      encoderContext.encodeWithChildContext(codec, writer, value);
-    }
+
+    Codec codec = codecRegistry.get(value.getClass());
+    encoderContext.encodeWithChildContext(codec, writer, value);
   }
 }

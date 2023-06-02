@@ -3,12 +3,17 @@ package de.claasklar.database.mongodb;
 import static com.mongodb.client.model.Filters.eq;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import de.claasklar.database.Database;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.Id;
+import de.claasklar.primitives.document.NestedObjectValue;
 import de.claasklar.primitives.document.OurDocument;
+import de.claasklar.primitives.query.Find;
+import de.claasklar.primitives.query.FindOptions;
+import de.claasklar.primitives.query.Query;
 import de.claasklar.util.TelemetryUtil;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongHistogram;
@@ -18,8 +23,12 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import org.bson.BsonDocumentWrapper;
+import org.bson.codecs.configuration.CodecRegistry;
 
 public class MongoDatabase implements Database, AutoCloseable {
 
@@ -81,10 +90,7 @@ public class MongoDatabase implements Database, AutoCloseable {
             .startSpan();
     try (var ignored = readSpan.makeCurrent()) {
       var start = clock.instant();
-      var document =
-          collections.get(collectionName)
-              .find(eq("_id", id))
-              .first();
+      var document = collections.get(collectionName).find(eq("_id", id)).first();
       histogram.record(
           start.until(clock.instant(), ChronoUnit.MICROS),
           Attributes.of(
@@ -103,6 +109,106 @@ public class MongoDatabase implements Database, AutoCloseable {
       throw e;
     } finally {
       readSpan.end();
+    }
+  }
+
+  @Override
+  public void executeQuery(Query query, Span span) {
+    var executeSpan =
+        tracer
+            .spanBuilder("execute query " + query.getQueryName())
+            .setParent(Context.current().with(span))
+            .setAllAttributes(
+                new TelemetryUtil()
+                    .executeQueryAttributes(query.getCollectionName(), query.getQueryName()))
+            .startSpan();
+    try {
+      if (query instanceof Find find) {
+        executeFind(find, executeSpan);
+      }
+    } catch (Exception e) {
+      executeSpan.recordException(e);
+      executeSpan.setStatus(StatusCode.ERROR);
+      throw e;
+    } finally {
+      executeSpan.end();
+    }
+  }
+
+  private void executeFind(Find find, Span span) {
+    var collection = collections.get(find.getCollectionName());
+    var result = collection.find(NestedObjectValue.class);
+    applyFindOptions(result, find.getFindOptions(), collection.getCodecRegistry());
+    var start = clock.instant();
+    try (var iterator = result.iterator()) {
+      var list = new LinkedList<>();
+      iterator.forEachRemaining(list::add);
+      span.addEvent("query executed", Attributes.of(stringKey("result"), list.toString()));
+    }
+    histogram.record(
+        start.until(clock.instant(), ChronoUnit.MICROS),
+        Attributes.of(
+            stringKey("collection"),
+            find.getCollectionName().toString(),
+            stringKey("operation"),
+            find.getQueryName()));
+  }
+
+  private <T> void applyFindOptions(
+      FindIterable<T> findIterable, FindOptions findOptions, CodecRegistry codecRegistry) {
+    if (findOptions.getFilter() != null) {
+      findIterable.filter(
+          BsonDocumentWrapper.asBsonDocument(findOptions.getFilter(), codecRegistry));
+    }
+    if (findOptions.getBatchSize() != null) {
+      findIterable.batchSize(findOptions.getBatchSize());
+    }
+    if (findOptions.getLimit() != null) {
+      findIterable.limit(findOptions.getLimit());
+    }
+    if (findOptions.getProjection() != null) {
+      findIterable.projection(
+          BsonDocumentWrapper.asBsonDocument(findOptions.getProjection(), codecRegistry));
+    }
+    if (findOptions.getMaxTime() != null) {
+      findIterable.maxTime(findOptions.getMaxTime().toMillis(), TimeUnit.MILLISECONDS);
+    }
+    if (findOptions.getMaxAwaitTime() != null) {
+      findIterable.maxAwaitTime(findOptions.getMaxAwaitTime().toMillis(), TimeUnit.MILLISECONDS);
+    }
+    if (findOptions.getSkip() != null) {
+      findIterable.skip(findOptions.getSkip());
+    }
+    if (findOptions.getSort() != null) {
+      findIterable.sort(BsonDocumentWrapper.asBsonDocument(findOptions.getSort(), codecRegistry));
+    }
+    if (findOptions.getNoCursorTimeout() != null) {
+      findIterable.noCursorTimeout(findOptions.getNoCursorTimeout());
+    }
+    if (findOptions.getPartial() != null) {
+      findIterable.partial(findOptions.getPartial());
+    }
+    if (findOptions.getHint() != null) {
+      findIterable.hint(BsonDocumentWrapper.asBsonDocument(findOptions.getHint(), codecRegistry));
+    }
+    if (findOptions.getVariables() != null) {
+      findIterable.let(
+          BsonDocumentWrapper.asBsonDocument(findOptions.getVariables(), codecRegistry));
+    }
+    if (findOptions.getMax() != null) {
+      findIterable.max(BsonDocumentWrapper.asBsonDocument(findOptions.getMax(), codecRegistry));
+    }
+    if (findOptions.getMin() != null) {
+      findIterable.min(BsonDocumentWrapper.asBsonDocument(findOptions.getMin(), codecRegistry));
+    }
+    if (findOptions.getReturnKey() != null) {
+      findIterable.returnKey(findOptions.getReturnKey());
+    }
+    if (findOptions.getShowRecordId() != null) {
+      findIterable.showRecordId(findOptions.getShowRecordId());
+    }
+    if (findOptions.getAllowDiskUse() != null) {
+      findIterable.allowDiskUse(findOptions.getAllowDiskUse());
     }
   }
 
