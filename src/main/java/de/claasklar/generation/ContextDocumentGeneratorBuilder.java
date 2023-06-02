@@ -11,6 +11,7 @@ import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.ObjectValue;
 import de.claasklar.primitives.document.OurDocument;
 import de.claasklar.primitives.document.Value;
+import de.claasklar.random.distribution.StdRandomNumberGenerator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,7 @@ public class ContextDocumentGeneratorBuilder {
 
   public ContextDocumentGeneratorBuilder field(
       String key, Function<ValueSuppliers, ValueSupplier> config) {
-    return this.field(key, config.apply(new ValueSuppliers()));
+    return this.field(key, config.apply(new ValueSuppliers(new StdRandomNumberGenerator())));
   }
 
   public ContextDocumentGeneratorBuilder fieldFromPipe(

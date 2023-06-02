@@ -4,15 +4,19 @@ import de.claasklar.primitives.document.ArrayValue;
 import de.claasklar.primitives.document.DoubleValue;
 import de.claasklar.primitives.document.NestedObjectValue;
 import de.claasklar.primitives.document.StringValue;
+import de.claasklar.random.distribution.RandomNumberGenerator;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class ValueSuppliers {
 
-  private static final Random random = new Random();
+  private final RandomNumberGenerator random;
+
+  public ValueSuppliers(RandomNumberGenerator randomNumberGenerator) {
+    this.random = randomNumberGenerator;
+  }
 
   public ValueSupplier uniformIntSupplier(int lower, int upper) {
     return () -> new DoubleValue(random.nextInt(lower, upper));

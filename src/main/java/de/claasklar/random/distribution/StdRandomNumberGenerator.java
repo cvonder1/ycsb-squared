@@ -1,13 +1,16 @@
 package de.claasklar.random.distribution;
 
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class StdRandomNumberGenerator implements RandomNumberGenerator {
 
-  private static final Random random = new Random();
-
   @Override
   public long nextLong(long min, long max) {
-    return random.nextLong(min, max);
+    return ThreadLocalRandom.current().nextLong(min, max);
+  }
+
+  @Override
+  public int nextInt(int min, int max) {
+    return ThreadLocalRandom.current().nextInt(min, max);
   }
 }

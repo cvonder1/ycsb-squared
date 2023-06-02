@@ -4,6 +4,7 @@ import de.claasklar.generation.inserters.FixedKeyObjectInserter;
 import de.claasklar.generation.inserters.ObjectInserter;
 import de.claasklar.generation.suppliers.ValueSupplier;
 import de.claasklar.generation.suppliers.ValueSuppliers;
+import de.claasklar.random.distribution.StdRandomNumberGenerator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Function;
@@ -15,7 +16,7 @@ public class ContextlessDocumentGeneratorBuilder {
 
   private ContextlessDocumentGeneratorBuilder() {
     this.inserters = new LinkedList<>();
-    this.valueSuppliers = new ValueSuppliers();
+    this.valueSuppliers = new ValueSuppliers(new StdRandomNumberGenerator());
   }
 
   public static ContextlessDocumentGeneratorBuilder builder() {
