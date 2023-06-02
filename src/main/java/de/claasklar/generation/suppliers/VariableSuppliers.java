@@ -5,10 +5,9 @@ import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
 import de.claasklar.primitives.document.NestedObjectValue;
 import de.claasklar.random.distribution.id.IdDistribution;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
 
 public class VariableSuppliers {
   private static final Logger logger = LoggerFactory.getLogger(VariableSuppliers.class);
@@ -25,7 +24,9 @@ public class VariableSuppliers {
       do {
         id = idDistribution.next();
         IdLong finalId = id;
-        logger.atTrace().log(() -> "requested next id for existing id supplier " + finalId.toString());
+        logger
+            .atTrace()
+            .log(() -> "requested next id for existing id supplier " + finalId.toString());
       } while (!idStore.exists(collectionName, id.id()));
       IdLong finalId1 = id;
       logger.atTrace().log(() -> "found id for existing id supplier: " + finalId1);

@@ -151,6 +151,7 @@ public class MongoDatabaseBuilder {
             .setUnit("us")
             .setDescription("Tracks duration of all database operations.")
             .build();
-    return new MongoDatabase(client, mongoCollections, tracer, histogram, Clock.systemUTC());
+    return new MongoDatabase(
+        client, finalDatabase, mongoCollections, tracer, histogram, Clock.systemUTC());
   }
 }

@@ -5,10 +5,9 @@ import de.claasklar.primitives.document.NestedObjectValue;
 import de.claasklar.primitives.query.Find;
 import de.claasklar.primitives.query.FindOptions;
 import de.claasklar.primitives.query.Query;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.function.Supplier;
 
 public class VariableFindGenerator implements QueryGenerator {
 

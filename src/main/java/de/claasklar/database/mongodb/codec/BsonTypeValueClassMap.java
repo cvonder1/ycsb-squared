@@ -26,7 +26,8 @@ public class BsonTypeValueClassMap {
               NullValue.class,
               BsonType.OBJECT_ID,
               Id.class,
-                  BsonType.INT32, IntValue.class));
+              BsonType.INT32,
+              IntValue.class));
 
   private final Map<BsonType, Class<?>> map;
 

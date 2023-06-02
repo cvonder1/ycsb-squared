@@ -36,11 +36,11 @@ public class FileIdStoreTest {
 
   @Test
   public void testStoreShouldStoreIdWithGaps() {
-    //given
+    // given
     var name = new CollectionName("test");
-    //when
+    // when
     testSubject.store(name, 788);
-    //then
+    // then
     assertThat(testSubject.exists(name, 788)).isTrue();
   }
 

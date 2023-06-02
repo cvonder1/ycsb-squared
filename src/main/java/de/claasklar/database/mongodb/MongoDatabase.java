@@ -3,14 +3,18 @@ package de.claasklar.database.mongodb;
 import static com.mongodb.client.model.Filters.eq;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
+import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.*;
 import de.claasklar.database.Database;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.Id;
 import de.claasklar.primitives.document.NestedObjectValue;
 import de.claasklar.primitives.document.OurDocument;
+import de.claasklar.primitives.query.Aggregation;
+import de.claasklar.primitives.query.AggregationOptions;
 import de.claasklar.primitives.query.Find;
 import de.claasklar.primitives.query.FindOptions;
 import de.claasklar.primitives.query.Query;
@@ -24,15 +28,18 @@ import io.opentelemetry.context.Context;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import org.bson.BsonDocument;
 import org.bson.BsonDocumentWrapper;
 import org.bson.codecs.configuration.CodecRegistry;
 
 public class MongoDatabase implements Database, AutoCloseable {
 
   private final MongoClient client;
+  private final com.mongodb.client.MongoDatabase database;
   private final Tracer tracer;
   private final LongHistogram histogram;
   private final Clock clock;
@@ -40,11 +47,13 @@ public class MongoDatabase implements Database, AutoCloseable {
 
   MongoDatabase(
       MongoClient client,
+      com.mongodb.client.MongoDatabase database,
       Map<CollectionName, MongoCollection<OurDocument>> collections,
       Tracer tracer,
       LongHistogram histogram,
       Clock clock) {
     this.client = client;
+    this.database = database;
     this.tracer = tracer;
     this.histogram = histogram;
     this.clock = clock;
@@ -125,6 +134,8 @@ public class MongoDatabase implements Database, AutoCloseable {
     try {
       if (query instanceof Find find) {
         executeFind(find, executeSpan);
+      } else if (query instanceof Aggregation aggregation) {
+        executeAggregate(aggregation, executeSpan);
       }
     } catch (Exception e) {
       executeSpan.recordException(e);
@@ -210,6 +221,132 @@ public class MongoDatabase implements Database, AutoCloseable {
     if (findOptions.getAllowDiskUse() != null) {
       findIterable.allowDiskUse(findOptions.getAllowDiskUse());
     }
+  }
+
+  private void executeAggregate(Aggregation aggregation, Span span) {
+    var iterable = aggregateIterableFromOptions(aggregation.getAggregationOptions());
+    var start = clock.instant();
+    try (var iterator = iterable.iterator()) {
+      var list = new LinkedList<>();
+      iterator.forEachRemaining(list::add);
+      span.addEvent("query executed", Attributes.of(stringKey("result"), list.toString()));
+    }
+    histogram.record(
+        start.until(clock.instant(), ChronoUnit.MICROS),
+        Attributes.of(
+            stringKey("collection"),
+            aggregation.getCollectionName().toString(),
+            stringKey("operation"),
+            aggregation.getQueryName()));
+  }
+
+  private AggregateIterable<NestedObjectValue> aggregateIterableFromOptions(
+      AggregationOptions aggregationOptions) {
+    var codecRegistry = database.getCodecRegistry();
+    AggregateIterable<NestedObjectValue> iterable;
+    List<BsonDocument> pipeline =
+        aggregationOptions.getPipeline().stream()
+            .map(it -> BsonDocumentWrapper.asBsonDocument(it, codecRegistry))
+            .toList();
+    // 1 stands for an aggregation without collection
+    if (aggregationOptions.getAggregate().equals("1")) {
+      iterable = database.aggregate(pipeline, NestedObjectValue.class);
+    } else {
+      iterable =
+          collections
+              .get(new CollectionName(aggregationOptions.getAggregate()))
+              .aggregate(pipeline, NestedObjectValue.class);
+    }
+
+    if (aggregationOptions.getAllowDiskUse() != null) {
+      iterable.allowDiskUse(aggregationOptions.getAllowDiskUse());
+    }
+    if (aggregationOptions.getMaxTime() != null) {
+      iterable.maxTime(aggregationOptions.getMaxTime().toMillis(), TimeUnit.MILLISECONDS);
+    }
+    if (aggregationOptions.getMaxAwaitTime() != null) {
+      iterable.maxAwaitTime(aggregationOptions.getMaxAwaitTime().toMillis(), TimeUnit.MILLISECONDS);
+    }
+    if (aggregationOptions.getBypassDocumentValidation() != null) {
+      iterable.bypassDocumentValidation(aggregationOptions.getBypassDocumentValidation());
+    }
+    if (aggregationOptions.getCollation() != null) {
+      iterable.collation(mapCollation(aggregationOptions.getCollation()));
+    }
+    if (aggregationOptions.getHint() != null) {
+      iterable.hint(
+          BsonDocumentWrapper.asBsonDocument(aggregationOptions.getHint(), codecRegistry));
+    }
+    if (aggregationOptions.getHintString() != null) {
+      iterable.hintString(aggregationOptions.getHintString());
+    }
+    if (aggregationOptions.getVariables() != null) {
+      iterable.let(
+          BsonDocumentWrapper.asBsonDocument(aggregationOptions.getVariables(), codecRegistry));
+    }
+    return iterable;
+  }
+
+  private Collation mapCollation(de.claasklar.primitives.query.Collation ourCollation) {
+    return Collation.builder()
+        .locale(ourCollation.getLocale())
+        .caseLevel(ourCollation.getCaseLevel())
+        .collationCaseFirst(mapCollationCaseFirst(ourCollation.getCaseFirst()))
+        .collationStrength(mapCollationStrength(ourCollation.getStrength()))
+        .numericOrdering(ourCollation.getNumericOrdering())
+        .collationAlternate(mapCollationAlternate(ourCollation.getAlternate()))
+        .collationMaxVariable(mapCollationMaxVariable(ourCollation.getMaxVariable()))
+        .normalization(ourCollation.getNormalization())
+        .backwards(ourCollation.getBackwards())
+        .build();
+  }
+
+  private CollationCaseFirst mapCollationCaseFirst(
+      de.claasklar.primitives.query.CollationCaseFirst ourCollationCaseFirst) {
+    if (ourCollationCaseFirst == null) {
+      return null;
+    }
+    return switch (ourCollationCaseFirst) {
+      case OFF -> CollationCaseFirst.OFF;
+      case LOWER -> CollationCaseFirst.LOWER;
+      case UPPER -> CollationCaseFirst.UPPER;
+    };
+  }
+
+  private CollationStrength mapCollationStrength(
+      de.claasklar.primitives.query.CollationStrength ourCollationStrength) {
+    if (ourCollationStrength == null) {
+      return null;
+    }
+    return switch (ourCollationStrength) {
+      case PRIMARY -> CollationStrength.PRIMARY;
+      case SECONDARY -> CollationStrength.SECONDARY;
+      case TERTIARY -> CollationStrength.TERTIARY;
+      case QUATERNARY -> CollationStrength.QUATERNARY;
+      case IDENTICAL -> CollationStrength.IDENTICAL;
+    };
+  }
+
+  private CollationAlternate mapCollationAlternate(
+      de.claasklar.primitives.query.CollationAlternate ourCollationAlternate) {
+    if (ourCollationAlternate == null) {
+      return null;
+    }
+    return switch (ourCollationAlternate) {
+      case SHIFTED -> CollationAlternate.SHIFTED;
+      case NON_IGNORABLE -> CollationAlternate.NON_IGNORABLE;
+    };
+  }
+
+  private CollationMaxVariable mapCollationMaxVariable(
+      de.claasklar.primitives.query.CollationMaxVariable ourCollationMaxVariable) {
+    if (ourCollationMaxVariable == null) {
+      return null;
+    }
+    return switch (ourCollationMaxVariable) {
+      case PUNCT -> CollationMaxVariable.PUNCT;
+      case SPACE -> CollationMaxVariable.SPACE;
+    };
   }
 
   @Override

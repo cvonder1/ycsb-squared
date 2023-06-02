@@ -22,7 +22,7 @@ public class OurDocumentCodecRegistry implements CodecRegistry {
             new NestedObjectValueCodec(this, bsonTypeValueCodecMap),
             new ByteValueCodec(),
             new NullValueCodec(),
-                new IntValueCodec());
+            new IntValueCodec());
   }
 
   @Override
