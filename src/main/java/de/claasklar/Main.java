@@ -13,6 +13,8 @@ import de.claasklar.generation.*;
 import de.claasklar.generation.suppliers.ValueSuppliers;
 import de.claasklar.generation.suppliers.VariableSuppliers;
 import de.claasklar.idStore.FileIdStore;
+import de.claasklar.phase.load.LoadPhase;
+import de.claasklar.phase.load.TransactionPhase;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.query.AggregationOptions;
 import de.claasklar.primitives.query.FindOptions;
@@ -27,13 +29,14 @@ import de.claasklar.specification.ReadSpecification;
 import de.claasklar.specification.WriteSpecification;
 import de.claasklar.specification.WriteSpecificationRegistry;
 import de.claasklar.util.BsonUtil;
+import de.claasklar.util.Pair;
 import de.claasklar.util.TelemetryConfig;
 import io.opentelemetry.context.Context;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.bson.BsonArray;
 import org.bson.BsonDocument;
 import org.bson.BsonString;
@@ -79,8 +82,9 @@ public class Main {
             .collectionReadConcern(new CollectionName("test_collection"), ReadConcern.AVAILABLE)
             .build();
     var collectionName = new CollectionName("test_collection");
-    var threadExecutor = Context.current().wrap(Executors.newFixedThreadPool(5));
-    var bufferedThreadExecutor = Context.current().wrap(Executors.newFixedThreadPool(20));
+    var threadExecutor = Context.current().wrap(Executors.newVirtualThreadPerTaskExecutor());
+    var bufferedThreadExecutor =
+        Context.current().wrap(Executors.newVirtualThreadPerTaskExecutor());
 
     var registry = new WriteSpecificationRegistry();
     var documentGenerator =
@@ -184,32 +188,42 @@ public class Main {
             tracer,
             Clock.systemUTC());
 
-    var ids = new HashSet<>();
+    var loadPhase = new LoadPhase(primaryWriteSpecification, 800, applicationSpan, tracer);
+    var transactionPhase =
+        new TransactionPhase(
+            1000,
+            2,
+            20,
+            List.of(
+                new Pair<>(0.2, primaryWriteSpecification),
+                new Pair<>(0.6, readSpecification),
+                new Pair<>(0.1, countAggregationReadSpecification),
+                new Pair<>(0.1, findOneReadSpecification)),
+            new StdRandomNumberGenerator(),
+            applicationSpan,
+            tracer);
 
     try {
-      long start = System.currentTimeMillis();
-      for (int i = 0; i < 1000; i++) {
-        var runnable = primaryWriteSpecification.runnable();
-        logger.atDebug().log("running primaryWriteSpecification");
-        runnable.run();
-        ids.add(runnable.getDocument().getId());
-        logger.atDebug().log("running readRunnable");
-        var readRunnable = readSpecification.runnable();
-        readRunnable.run();
-        countAggregationReadSpecification.runnable().run();
-        if (i > 800) {
-          logger.atDebug().log("running findOneReadSpecification");
-          findOneReadSpecification.runnable().run();
-        }
-      }
-      System.out.println(System.currentTimeMillis() - start);
-      System.out.println("Total num ids: " + ids.size());
-      System.out.println("version: " + TelemetryConfig.version());
-    } catch (Exception e) {
-      applicationSpan.recordException(e);
-    } finally {
+      loadPhase.load();
+      transactionPhase.run();
+      logger.atInfo().log(() -> "version: " + TelemetryConfig.version());
+      Thread.sleep(Duration.ofSeconds(10));
       threadExecutor.shutdown();
       bufferedThreadExecutor.shutdown();
+      var threadExecutorShutDown = threadExecutor.awaitTermination(1, TimeUnit.MINUTES);
+      if (!threadExecutorShutDown) {
+        logger.atWarn().log("could not terminate threadExecutor withing one minute");
+      }
+      var bufferedExecutorShutDown = bufferedThreadExecutor.awaitTermination(1, TimeUnit.MINUTES);
+      if (!bufferedExecutorShutDown) {
+        logger.atWarn().log("could not terminate bufferedExecutor withing one minute");
+      }
+    } catch (Exception e) {
+      logger.atError().log(e.getMessage());
+      applicationSpan.recordException(e);
+    } finally {
+      threadExecutor.shutdownNow();
+      bufferedThreadExecutor.shutdownNow();
       applicationSpan.end();
       database.close();
       Thread.sleep(Duration.ofSeconds(10));

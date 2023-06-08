@@ -4,4 +4,6 @@ public interface RandomNumberGenerator {
   int nextInt(int min, int max);
 
   long nextLong(long min, long max);
+
+  double nextDouble(double min, double max);
 }

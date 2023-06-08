@@ -1,7 +1,7 @@
 package de.claasklar.idStore;
 
 import de.claasklar.primitives.CollectionName;
-import de.claasklar.primitives.Pair;
+import de.claasklar.util.Pair;
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;

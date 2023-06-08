@@ -15,7 +15,7 @@ import java.time.Clock;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class PrimaryWriteSpecification implements Specification {
+public final class PrimaryWriteSpecification implements TopSpecification {
 
   private final CollectionName collectionName;
   private final ReferencesDistribution[] referencesDistributions;
@@ -54,6 +54,7 @@ public class PrimaryWriteSpecification implements Specification {
     this.currentId = new AtomicLong(1);
   }
 
+  @Override
   public PrimaryWriteSpecificationRunnable runnable() {
     return new PrimaryWriteSpecificationRunnable(
         collectionName,

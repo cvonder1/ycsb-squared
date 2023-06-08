@@ -13,4 +13,9 @@ public class StdRandomNumberGenerator implements RandomNumberGenerator {
   public int nextInt(int min, int max) {
     return ThreadLocalRandom.current().nextInt(min, max);
   }
+
+  @Override
+  public double nextDouble(double min, double max) {
+    return ThreadLocalRandom.current().nextDouble(min, max);
+  }
 }

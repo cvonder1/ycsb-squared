@@ -9,7 +9,7 @@ import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.trace.Tracer;
 import java.time.Clock;
 
-public class ReadSpecification implements Specification {
+public final class ReadSpecification implements TopSpecification {
 
   private final String name;
   private final QueryGenerator queryGenerator;
@@ -40,6 +40,7 @@ public class ReadSpecification implements Specification {
             name);
   }
 
+  @Override
   public ReadSpecificationRunnable runnable() {
     return new ReadSpecificationRunnable(
         queryGenerator, name, database, attributes, tracer, clock, histogram);

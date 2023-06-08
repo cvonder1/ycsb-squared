@@ -12,7 +12,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import java.time.Clock;
 
-public class WriteSpecification implements Specification {
+public final class WriteSpecification implements Specification {
 
   private final CollectionName collectionName;
   private final ContextlessDocumentGenerator generator;
