@@ -8,9 +8,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Executor;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +19,7 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
   private final Queue<IdLong> queue;
   private final int bufferSize;
   private final AtomicInteger currentSize;
+  private final AtomicInteger waitingSize;
   private final CollectionName collectionName;
   private final DocumentDistribution documentDistribution;
   private final Database database;
@@ -36,6 +35,7 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
     this.queue = new ConcurrentLinkedQueue<>();
     this.bufferSize = bufferSize;
     this.currentSize = new AtomicInteger(0);
+    this.waitingSize = new AtomicInteger(0);
     this.collectionName = documentDistribution.getCollectionName();
     this.documentDistribution = documentDistribution;
     this.database = database;
@@ -74,15 +74,19 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
   }
 
   private void fillQueue(int numElements) {
-    var queueSize = currentSize.get();
-    var numBuffering = Math.min(Math.max((bufferSize - queueSize), 0), numElements);
+    var numBuffering =
+        Math.min(Math.max((bufferSize - currentSize.get() - waitingSize.get()), 0), numElements);
+    waitingSize.updateAndGet((old) -> old + numBuffering);
     var bufferSpan = tracer.spanBuilder("Buffering next documents").setNoParent().startSpan();
     var writeFutures = new LinkedList<>();
+    var numReading = 0;
     for (int i = 0; i < numBuffering; i++) {
       var nextRunnable = documentDistribution.next(bufferSpan);
       if (nextRunnable instanceof ReadDocumentRunnable r) {
         queue.add(r.getId());
         currentSize.incrementAndGet();
+        numReading++;
+        waitingSize.decrementAndGet();
       } else if (nextRunnable instanceof WriteDocumentRunnable w) {
         var future =
             CompletableFuture.supplyAsync(() -> w, executor)
@@ -94,13 +98,17 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
                     })
                 .whenComplete(
                     (it, e) -> {
-                      bufferSpan.recordException(e);
+                      waitingSize.decrementAndGet();
+                      if (e != null) {
+                        bufferSpan.recordException(e);
+                      }
                     });
         writeFutures.add(future);
       } else {
         throw new IllegalArgumentException("unknown class " + nextRunnable.getClass());
       }
     }
+    var numReadingF = numReading;
     CompletableFuture.allOf(writeFutures.toArray(CompletableFuture[]::new))
         .whenComplete(
             (it1, it2) -> {
@@ -109,7 +117,7 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
                   Attributes.builder()
                       .put("numBuffering", numBuffering)
                       .put("numWriting", writeFutures.size())
-                      .put("numReading", numBuffering - writeFutures.size())
+                      .put("numReading", numReadingF)
                       .build());
               bufferSpan.end();
             });
