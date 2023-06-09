@@ -1,7 +1,7 @@
 FROM ubuntu:kinetic-20230412
 
 RUN apt-get update --yes && \
-    apt-get install --yes openjdk-19-jdk
+    apt-get install --yes openjdk-20-jdk
 
 WORKDIR /build
 COPY gradle/wrapper/ ./gradle/wrapper/
@@ -16,4 +16,4 @@ RUN mkdir -p src/main/java/de/claasklar && \
 COPY src ./src
 RUN ./gradlew jar
 
-CMD ["java", "-jar", "build/libs/ycsb-squared-1.0-SNAPSHOT.jar", "-Dio.opentelemetry.context.enableStrictContext=true"]
+CMD ["java", "--enable-preview", "-jar", "build/libs/ycsb-squared-1.0-SNAPSHOT.jar", "-Dio.opentelemetry.context.enableStrictContext=true"]

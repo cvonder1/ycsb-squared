@@ -13,11 +13,13 @@ import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.Id;
 import de.claasklar.primitives.document.NestedObjectValue;
 import de.claasklar.primitives.document.OurDocument;
+import de.claasklar.primitives.index.IndexConfiguration;
 import de.claasklar.primitives.query.Aggregation;
 import de.claasklar.primitives.query.AggregationOptions;
 import de.claasklar.primitives.query.Find;
 import de.claasklar.primitives.query.FindOptions;
 import de.claasklar.primitives.query.Query;
+import de.claasklar.util.Pair;
 import de.claasklar.util.TelemetryUtil;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongHistogram;
@@ -35,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import org.bson.BsonDocument;
 import org.bson.BsonDocumentWrapper;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.conversions.Bson;
 
 public class MongoDatabase implements Database, AutoCloseable {
 
@@ -143,6 +146,29 @@ public class MongoDatabase implements Database, AutoCloseable {
       throw e;
     } finally {
       executeSpan.end();
+    }
+  }
+
+  @Override
+  public void createIndex(IndexConfiguration indexConfiguration, Span span) {
+    var indexSpan =
+        tracer
+            .spanBuilder("create index")
+            .setAttribute("collection", indexConfiguration.getCollectionName().name())
+            .setAttribute("keys", indexConfiguration.getKeys().toString())
+            .setParent(Context.current().with(span))
+            .startSpan();
+
+    try {
+      var collection = collections.get(indexConfiguration.getCollectionName());
+      var index = mapIndexConfiguration(indexConfiguration, collection.getCodecRegistry());
+      collection.createIndex(index.first(), index.second());
+    } catch (Exception e) {
+      indexSpan.setStatus(StatusCode.ERROR);
+      indexSpan.recordException(e);
+      throw e;
+    } finally {
+      indexSpan.end();
     }
   }
 
@@ -288,6 +314,9 @@ public class MongoDatabase implements Database, AutoCloseable {
   }
 
   private Collation mapCollation(de.claasklar.primitives.query.Collation ourCollation) {
+    if (ourCollation == null) {
+      return null;
+    }
     return Collation.builder()
         .locale(ourCollation.getLocale())
         .caseLevel(ourCollation.getCaseLevel())
@@ -347,6 +376,50 @@ public class MongoDatabase implements Database, AutoCloseable {
       case PUNCT -> CollationMaxVariable.PUNCT;
       case SPACE -> CollationMaxVariable.SPACE;
     };
+  }
+
+  private Pair<Bson, IndexOptions> mapIndexConfiguration(
+      IndexConfiguration indexConfiguration, CodecRegistry codecRegistry) {
+    var indexOptions = new IndexOptions();
+    if (indexConfiguration.getBackground() != null) {
+      indexOptions.background(indexConfiguration.getBackground());
+    }
+    if (indexConfiguration.getUnique() != null) {
+      indexOptions.unique(indexConfiguration.getUnique());
+    }
+    indexOptions.name(indexConfiguration.getName());
+    if (indexConfiguration.getSparse() != null) {
+      indexOptions.sparse(indexConfiguration.getSparse());
+    }
+    if (indexConfiguration.getExpireAfterDuration() != null) {
+      indexOptions.expireAfter(
+          indexConfiguration.getExpireAfterDuration().toSeconds(), TimeUnit.SECONDS);
+    }
+    indexOptions.version(indexConfiguration.getVersion());
+    indexOptions.weights(
+        BsonDocumentWrapper.asBsonDocument(indexConfiguration.getWeights(), codecRegistry));
+    indexOptions.defaultLanguage(indexConfiguration.getDefaultLanguage());
+    indexOptions.languageOverride(indexConfiguration.getLanguageOverride());
+    indexOptions.textVersion(indexConfiguration.getTextVersion());
+    indexOptions.sphereVersion(indexConfiguration.getSphereVersion());
+    indexOptions.bits(indexConfiguration.getBits());
+    indexOptions.min(indexConfiguration.getMin());
+    indexOptions.max(indexConfiguration.getMax());
+    indexOptions.storageEngine(
+        BsonDocumentWrapper.asBsonDocument(indexConfiguration.getStorageEngine(), codecRegistry));
+    indexOptions.partialFilterExpression(
+        BsonDocumentWrapper.asBsonDocument(
+            indexConfiguration.getPartialFilterExpression(), codecRegistry));
+    indexOptions.collation(mapCollation(indexConfiguration.getCollation()));
+    indexOptions.wildcardProjection(
+        BsonDocumentWrapper.asBsonDocument(
+            indexConfiguration.getWildcardProjection(), codecRegistry));
+    if (indexConfiguration.getHidden() != null) {
+      indexOptions.hidden(indexConfiguration.getHidden());
+    }
+    return new Pair<>(
+        BsonDocumentWrapper.asBsonDocument(indexConfiguration.getKeys(), codecRegistry),
+        indexOptions);
   }
 
   @Override

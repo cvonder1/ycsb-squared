@@ -8,14 +8,18 @@ import com.mongodb.ReadConcern;
 import com.mongodb.ReadPreference;
 import com.mongodb.WriteConcern;
 import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Indexes;
 import de.claasklar.database.mongodb.MongoDatabaseBuilder;
 import de.claasklar.generation.*;
 import de.claasklar.generation.suppliers.ValueSuppliers;
 import de.claasklar.generation.suppliers.VariableSuppliers;
 import de.claasklar.idStore.FileIdStore;
-import de.claasklar.phase.load.LoadPhase;
-import de.claasklar.phase.load.TransactionPhase;
+import de.claasklar.phase.IndexPhase;
+import de.claasklar.phase.LoadPhase;
+import de.claasklar.phase.TransactionPhase;
 import de.claasklar.primitives.CollectionName;
+import de.claasklar.primitives.index.IndexConfiguration;
+import de.claasklar.primitives.index.IndexConfigurationBuilder;
 import de.claasklar.primitives.query.AggregationOptions;
 import de.claasklar.primitives.query.FindOptions;
 import de.claasklar.random.distribution.StdRandomNumberGenerator;
@@ -31,6 +35,7 @@ import de.claasklar.specification.WriteSpecificationRegistry;
 import de.claasklar.util.BsonUtil;
 import de.claasklar.util.Pair;
 import de.claasklar.util.TelemetryConfig;
+import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.context.Context;
 import java.time.Clock;
 import java.time.Duration;
@@ -85,6 +90,12 @@ public class Main {
     var threadExecutor = Context.current().wrap(Executors.newVirtualThreadPerTaskExecutor());
     var bufferedThreadExecutor =
         Context.current().wrap(Executors.newVirtualThreadPerTaskExecutor());
+
+    var indexOnSecondary =
+        IndexConfigurationBuilder.builder()
+            .collectionName(new CollectionName("primary"))
+            .keys(asOurBson(Indexes.ascending("secondary")))
+            .build();
 
     var registry = new WriteSpecificationRegistry();
     var documentGenerator =
@@ -188,6 +199,9 @@ public class Main {
             tracer,
             Clock.systemUTC());
 
+    var indexPhase =
+        new IndexPhase(
+            new IndexConfiguration[] {indexOnSecondary}, database, applicationSpan, tracer);
     var loadPhase = new LoadPhase(primaryWriteSpecification, 800, applicationSpan, tracer);
     var transactionPhase =
         new TransactionPhase(
@@ -204,6 +218,7 @@ public class Main {
             tracer);
 
     try {
+      indexPhase.createIndexes();
       loadPhase.load();
       transactionPhase.run();
       logger.atInfo().log(() -> "version: " + TelemetryConfig.version());
@@ -221,6 +236,7 @@ public class Main {
     } catch (Exception e) {
       logger.atError().log(e.getMessage());
       applicationSpan.recordException(e);
+      applicationSpan.setStatus(StatusCode.ERROR);
     } finally {
       threadExecutor.shutdownNow();
       bufferedThreadExecutor.shutdownNow();

@@ -29,7 +29,7 @@ services:
   mongodb:
     image: "registry.hub.docker.com/mongodb/mongodb-community-server:6.0.4-ubi8-20230524T062919Z"
   ycsb-squared:
-    image: "localhost/ycsb-squared:local"
+    image: "ycsb-squared"
     build:
       context: "."
       dockerfile: "./Dockerfile"

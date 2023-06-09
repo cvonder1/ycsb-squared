@@ -3,6 +3,7 @@ package de.claasklar.database;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.Id;
 import de.claasklar.primitives.document.OurDocument;
+import de.claasklar.primitives.index.IndexConfiguration;
 import de.claasklar.primitives.query.Query;
 import io.opentelemetry.api.trace.Span;
 import java.util.Map;
@@ -44,4 +45,7 @@ public class InMemoryDatabase implements Database {
 
   @Override
   public void executeQuery(Query query, Span span) {}
+
+  @Override
+  public void createIndex(IndexConfiguration indexConfiguration, Span span) {}
 }

@@ -1,4 +1,4 @@
-package de.claasklar.phase.load;
+package de.claasklar.phase;
 
 import de.claasklar.random.distribution.RandomNumberGenerator;
 import de.claasklar.specification.TopSpecification;

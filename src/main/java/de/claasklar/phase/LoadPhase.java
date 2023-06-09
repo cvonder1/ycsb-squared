@@ -1,4 +1,4 @@
-package de.claasklar.phase.load;
+package de.claasklar.phase;
 
 import de.claasklar.specification.PrimaryWriteSpecification;
 import io.opentelemetry.api.trace.Span;
