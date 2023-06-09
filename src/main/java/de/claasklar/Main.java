@@ -14,6 +14,7 @@ import de.claasklar.generation.*;
 import de.claasklar.generation.suppliers.ValueSuppliers;
 import de.claasklar.generation.suppliers.VariableSuppliers;
 import de.claasklar.idStore.FileIdStore;
+import de.claasklar.idStore.InMemoryIdStore;
 import de.claasklar.phase.IndexPhase;
 import de.claasklar.phase.LoadPhase;
 import de.claasklar.phase.TransactionPhase;
@@ -71,7 +72,7 @@ public class Main {
             TelemetryConfig.INSTRUMENTATION_SCOPE_NAME, TelemetryConfig.version());
     var applicationSpan = tracer.spanBuilder(TelemetryConfig.APPLICATION_SPAN_NAME).startSpan();
 
-    var idStore = new FileIdStore();
+    var idStore = new InMemoryIdStore();
     var allCollections =
         List.of(
             new CollectionName("test_collection"),

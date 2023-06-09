@@ -6,7 +6,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-public class InMemoryIdStore implements IdStore {
+public class IdStoreStub implements IdStore {
   private final Map<CollectionName, Set<Long>> collections = new HashMap<>();
 
   @Override

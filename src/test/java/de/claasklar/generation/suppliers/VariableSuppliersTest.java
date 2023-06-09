@@ -6,14 +6,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import de.claasklar.idStore.IdStore;
-import de.claasklar.idStore.InMemoryIdStore;
+import de.claasklar.idStore.IdStoreStub;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
 import de.claasklar.random.distribution.id.IdDistribution;
 import org.junit.jupiter.api.Test;
 
 public class VariableSuppliersTest {
-  private final IdStore idStore = new InMemoryIdStore();
+  private final IdStore idStore = new IdStoreStub();
   private final CollectionName collectionName = new CollectionName("test");
   private final VariableSuppliers testSubject = new VariableSuppliers(idStore);
 
