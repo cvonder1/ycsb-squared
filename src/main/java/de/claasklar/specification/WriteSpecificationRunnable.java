@@ -1,11 +1,14 @@
 package de.claasklar.specification;
 
 import de.claasklar.database.Database;
-import de.claasklar.generation.ContextlessDocumentGenerator;
+import de.claasklar.generation.DocumentGenerator;
 import de.claasklar.idStore.IdStore;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
 import de.claasklar.primitives.document.OurDocument;
+import de.claasklar.random.distribution.reference.ReferencesDistribution;
+import de.claasklar.util.MapCollector;
+import de.claasklar.util.Pair;
 import de.claasklar.util.TelemetryUtil;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongHistogram;
@@ -15,15 +18,19 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
 
 public class WriteSpecificationRunnable implements Runnable {
 
   private final CollectionName collectionName;
   private final IdLong idLong;
   private final Span parentSpan;
-  private final ContextlessDocumentGenerator generator;
+  private final ReferencesDistribution[] referencesDistributions;
+  private final DocumentGenerator generator;
   private final Database database;
   private final IdStore idStore;
+  private final ExecutorService executor;
   private final LongHistogram histogram;
   private final Attributes attributes;
   private final Tracer tracer;
@@ -35,9 +42,11 @@ public class WriteSpecificationRunnable implements Runnable {
       CollectionName collectionName,
       IdLong idLong,
       Span parentSpan,
-      ContextlessDocumentGenerator generator,
+      ReferencesDistribution[] referencesDistributions,
+      DocumentGenerator generator,
       Database database,
       IdStore idStore,
+      ExecutorService executor,
       LongHistogram histogram,
       Attributes attributes,
       Tracer tracer,
@@ -45,9 +54,11 @@ public class WriteSpecificationRunnable implements Runnable {
     this.collectionName = collectionName;
     this.idLong = idLong;
     this.parentSpan = parentSpan;
+    this.referencesDistributions = referencesDistributions;
     this.generator = generator;
     this.database = database;
     this.idStore = idStore;
+    this.executor = executor;
     this.histogram = histogram;
     this.attributes = attributes;
     this.tracer = tracer;
@@ -57,9 +68,15 @@ public class WriteSpecificationRunnable implements Runnable {
   @Override
   public void run() {
     var start = clock.instant();
-    var document = generator.generateDocument(idLong.toId());
     var runSpan = newSpan();
     try (var ignored = parentSpan.makeCurrent()) {
+      var references =
+          Arrays.stream(referencesDistributions)
+              .parallel()
+              .map(dist -> new Pair<>(dist.getCollectionName(), dist.next(runSpan)))
+              .map(pair -> pair.mapSecond(runnable -> runnable.execute(executor)))
+              .collect(new MapCollector<>());
+      var document = generator.generateDocument(idLong.toId(), references);
       this.document = database.write(collectionName, document, runSpan);
       this.done = true;
       this.idStore.store(collectionName, idLong);

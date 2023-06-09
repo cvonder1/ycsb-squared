@@ -73,7 +73,10 @@ public class Main {
 
     var idStore = new FileIdStore();
     var allCollections =
-        List.of(new CollectionName("test_collection"), new CollectionName("primary"));
+        List.of(
+            new CollectionName("test_collection"),
+            new CollectionName("primary"),
+            new CollectionName("third"));
     var database =
         MongoDatabaseBuilder.builder()
             .databaseName(TelemetryConfig.version())
@@ -98,16 +101,52 @@ public class Main {
             .build();
 
     var registry = new WriteSpecificationRegistry();
-    var documentGenerator =
+
+    var thirdDocumentGenerator =
         ContextlessDocumentGeneratorBuilder.builder()
+            .field("string", (ValueSuppliers s) -> s.uniformLengthStringSupplier(5, 10))
+            .build();
+    var thirdWriteSpec =
+        new WriteSpecification(
+            new CollectionName("third"),
+            thirdDocumentGenerator,
+            new ReferencesDistribution[0],
+            database,
+            idStore,
+            threadExecutor,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+    registry.register(thirdWriteSpec);
+
+    var documentGenerator =
+        ContextDocumentGeneratorBuilder.builder()
             .field("number", (ValueSuppliers s) -> s.uniformIntSupplier(0, 1000))
+            .fieldFromPipe(
+                "third_id",
+                p ->
+                    p.selectCollection(
+                        new CollectionName("third"),
+                        pipeBuilder -> pipeBuilder.selectByPath("$.[*]._id").toArray()))
             .build();
     var writeSpec =
         new WriteSpecification(
             collectionName,
             documentGenerator,
+            new ReferencesDistribution[] {
+              new ConstantNumberReferencesDistribution(
+                  3,
+                  new SimpleDocumentDistribution(
+                      new CollectionName("third"),
+                      new UniformIdDistribution(20000, new StdRandomNumberGenerator()),
+                      idStore,
+                      database,
+                      registry,
+                      tracer))
+            },
             database,
             idStore,
+            threadExecutor,
             transactionDurationHistogram,
             tracer,
             Clock.systemUTC());
@@ -119,7 +158,7 @@ public class Main {
             collectionName, idDistribution, idStore, database, registry, tracer);
     var existingDocumentDistribution =
         new ExistingDocumentDistribution(
-            50, documentDistribution, database, bufferedThreadExecutor, tracer);
+            100, documentDistribution, database, bufferedThreadExecutor, tracer);
     var referencesDistribution =
         new ConstantNumberReferencesDistribution(5, existingDocumentDistribution);
 
