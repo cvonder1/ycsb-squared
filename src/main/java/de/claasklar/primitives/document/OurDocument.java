@@ -31,6 +31,7 @@ public final class OurDocument implements ObjectValue {
     return this.id;
   }
 
+  @Override
   public Value get(String key) {
     if (key.equals(ID_FIELD_NAME)) {
       return this.id;

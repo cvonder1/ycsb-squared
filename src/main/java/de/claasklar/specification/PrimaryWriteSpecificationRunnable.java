@@ -7,6 +7,7 @@ import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
 import de.claasklar.primitives.document.OurDocument;
 import de.claasklar.random.distribution.reference.ReferencesDistribution;
+import de.claasklar.random.distribution.reference.ReferencesRunnable;
 import de.claasklar.util.MapCollector;
 import de.claasklar.util.Pair;
 import io.opentelemetry.api.common.Attributes;
@@ -17,6 +18,7 @@ import io.opentelemetry.api.trace.Tracer;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 public class PrimaryWriteSpecificationRunnable implements Runnable {
@@ -65,11 +67,19 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
     var start = clock.instant();
     var span = newSpan();
     try (var ignored = span.makeCurrent()) {
-      var references =
+      var distributions =
           Arrays.stream(referencesDistributions)
-              .parallel()
               .map(dist -> new Pair<>(dist.getCollectionName(), dist.next(span)))
-              .map(pair -> pair.mapSecond(runnable -> runnable.execute(executor)))
+              .toList();
+      var futures =
+          distributions.stream()
+              .map(Pair::second)
+              .map(runnable -> CompletableFuture.runAsync(runnable, executor))
+              .toArray(CompletableFuture[]::new);
+      CompletableFuture.allOf(futures).join();
+      var references =
+          distributions.stream()
+              .map(it -> it.mapSecond(ReferencesRunnable::getDocuments))
               .collect(new MapCollector<>());
       var document = generator.generateDocument(id.toId(), references);
       database.write(collectionName, document, span);

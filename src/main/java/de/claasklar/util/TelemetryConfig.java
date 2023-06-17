@@ -47,7 +47,7 @@ public class TelemetryConfig {
                         OtlpGrpcSpanExporter.builder().setEndpoint("http://jaeger:4317").build())
                     .build())
             .setResource(resource)
-            .setSampler(new CustomAlwaysSampler(parentBased(traceIdRatioBased(0.1))))
+            .setSampler(new CustomAlwaysSampler(parentBased(traceIdRatioBased(1))))
             .build();
 
     SdkMeterProvider sdkMeterProvider =

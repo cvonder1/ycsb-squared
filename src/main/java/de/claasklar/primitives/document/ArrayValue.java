@@ -1,13 +1,14 @@
 package de.claasklar.primitives.document;
 
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public final class ArrayValue implements Value, Iterable<Value> {
   private final List<Value> values;
+
+  public static ArrayValue array(Value... values) {
+    return new ArrayValue(Arrays.stream(values).toList());
+  }
 
   public ArrayValue(List<Value> values) {
     this.values = new LinkedList<>(values);

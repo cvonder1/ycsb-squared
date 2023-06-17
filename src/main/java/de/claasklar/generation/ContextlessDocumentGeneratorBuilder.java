@@ -23,16 +23,21 @@ public class ContextlessDocumentGeneratorBuilder {
     return new ContextlessDocumentGeneratorBuilder();
   }
 
-  public ContextlessDocumentGeneratorBuilder field(String key, ObjectInserter inserter) {
-    this.inserters.add(inserter);
-    return this;
-  }
-
   public ContextlessDocumentGeneratorBuilder field(
       String key, Function<ValueSuppliers, ValueSupplier> config) {
     var supplier = config.apply(valueSuppliers);
     var inserter = new FixedKeyObjectInserter(key, supplier);
     inserters.add(inserter);
+    return this;
+  }
+
+  public ContextlessDocumentGeneratorBuilder field(ObjectInserter inserter) {
+    this.inserters.add(inserter);
+    return this;
+  }
+
+  public ContextlessDocumentGeneratorBuilder field(String key, ValueSupplier supplier) {
+    inserters.add(new FixedKeyObjectInserter(key, supplier));
     return this;
   }
 

@@ -8,7 +8,7 @@ public class UniformIdDistribution implements IdDistribution {
   private final RandomNumberGenerator random;
 
   public UniformIdDistribution(long max, RandomNumberGenerator random) {
-    if (max < 0) {
+    if (max <= 0) {
       throw new IllegalArgumentException("max must be greater zero");
     }
     this.max = max;

@@ -48,4 +48,7 @@ public class InMemoryDatabase implements Database {
 
   @Override
   public void createIndex(IndexConfiguration indexConfiguration, Span span) {}
+
+  @Override
+  public void close() throws Exception {}
 }

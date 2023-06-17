@@ -126,6 +126,16 @@ public class OurDocumentCodecRegistryTest {
   }
 
   @Test
+  public void testToBsonDocumentShouldInsertInt64() {
+    // given
+    var ourDocument = new OurDocument(randomId(), Map.of("long", new LongValue(70L)));
+    // when
+    var result = BsonDocumentWrapper.asBsonDocument(ourDocument, testSubject);
+    // then
+    assertThat(result).contains(entry("long", new BsonInt64(70L)));
+  }
+
+  @Test
   public void testDecodeBsonDocumentShouldSetId() {
     // given
     var id = randomId();
@@ -348,6 +358,23 @@ public class OurDocumentCodecRegistryTest {
             .decode(bson.asBsonReader(), DecoderContext.builder().build());
     // then
     assertThat(result.entrySet()).contains(entry("num", new IntValue(506)));
+  }
+
+  @Test
+  public void testDecodeShouldInsertLongValue() {
+    // given
+    var bson =
+        new BsonDocument(
+            List.of(
+                new BsonElement("_id", randomBsonObjectId()),
+                new BsonElement("num", new BsonInt64(600))));
+    // when
+    var result =
+        testSubject
+            .get(OurDocument.class)
+            .decode(bson.asBsonReader(), DecoderContext.builder().build());
+    // then
+    assertThat(result.entrySet()).contains(entry("num", new LongValue(600)));
   }
 
   private Id randomId() {

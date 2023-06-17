@@ -8,6 +8,8 @@ public sealed interface ObjectValue extends Value permits NestedObjectValue, Our
 
   void put(String key, Value value);
 
+  Value get(String key);
+
   Set<Entry<String, Value>> entrySet();
 
   @Override

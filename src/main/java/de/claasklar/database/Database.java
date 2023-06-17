@@ -8,7 +8,7 @@ import de.claasklar.primitives.query.Query;
 import io.opentelemetry.api.trace.Span;
 import java.util.Optional;
 
-public interface Database {
+public interface Database extends AutoCloseable {
 
   OurDocument write(CollectionName collectionName, OurDocument document, Span span);
 

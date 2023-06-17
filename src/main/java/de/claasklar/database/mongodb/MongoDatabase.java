@@ -29,7 +29,6 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,7 +38,7 @@ import org.bson.BsonDocumentWrapper;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.conversions.Bson;
 
-public class MongoDatabase implements Database, AutoCloseable {
+public class MongoDatabase implements Database {
 
   private final MongoClient client;
   private final com.mongodb.client.MongoDatabase database;
@@ -128,7 +127,7 @@ public class MongoDatabase implements Database, AutoCloseable {
   public void executeQuery(Query query, Span span) {
     var executeSpan =
         tracer
-            .spanBuilder("execute query " + query.getQueryName())
+            .spanBuilder("execute query")
             .setParent(Context.current().with(span))
             .setAllAttributes(
                 new TelemetryUtil()
@@ -178,9 +177,13 @@ public class MongoDatabase implements Database, AutoCloseable {
     applyFindOptions(result, find.getFindOptions(), collection.getCodecRegistry());
     var start = clock.instant();
     try (var iterator = result.iterator()) {
-      var list = new LinkedList<>();
-      iterator.forEachRemaining(list::add);
-      span.addEvent("query executed", Attributes.of(stringKey("result"), list.toString()));
+      var count =
+          new Object() {
+            int value = 0;
+          };
+      iterator.forEachRemaining(it -> count.value++);
+      span.addEvent(
+          "query executed", Attributes.of(stringKey("count"), Integer.toString(count.value)));
     }
     histogram.record(
         start.until(clock.instant(), ChronoUnit.MICROS),
@@ -253,9 +256,13 @@ public class MongoDatabase implements Database, AutoCloseable {
     var iterable = aggregateIterableFromOptions(aggregation.getAggregationOptions());
     var start = clock.instant();
     try (var iterator = iterable.iterator()) {
-      var list = new LinkedList<>();
-      iterator.forEachRemaining(list::add);
-      span.addEvent("query executed", Attributes.of(stringKey("result"), list.toString()));
+      var count =
+          new Object() {
+            int value = 0;
+          };
+      iterator.forEachRemaining(it -> count.value++);
+      span.addEvent(
+          "query executed", Attributes.of(stringKey("count"), Integer.toString(count.value)));
     }
     histogram.record(
         start.until(clock.instant(), ChronoUnit.MICROS),

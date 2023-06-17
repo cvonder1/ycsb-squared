@@ -19,4 +19,8 @@ public class InserterFactories {
   public InserterFactory<ObjectValue> insertFromSupplier(String key, ValueSupplier valueSupplier) {
     return context -> new FixedKeyObjectInserter(key, valueSupplier);
   }
+
+  public InserterFactory<ObjectValue> insertFromObjectInserter(ObjectInserter inserter) {
+    return context -> inserter;
+  }
 }

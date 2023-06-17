@@ -2,6 +2,7 @@ package de.claasklar.generation;
 
 import de.claasklar.generation.inserters.InserterFactories;
 import de.claasklar.generation.inserters.InserterFactory;
+import de.claasklar.generation.inserters.ObjectInserter;
 import de.claasklar.generation.pipes.Pipe;
 import de.claasklar.generation.pipes.Pipes;
 import de.claasklar.generation.pipes.Pipes.PipeBuilder;
@@ -51,6 +52,34 @@ public class ContextDocumentGeneratorBuilder {
     var fieldBuilder = new FieldPipeBuilder();
     fieldConfig.accept(fieldBuilder);
     this.inserterFactories.add(factory.insertFromPipe(key, fieldBuilder.build()));
+    return this;
+  }
+
+  public <T, U> ContextDocumentGeneratorBuilder field(
+      T initialState,
+      Function<T, U> extract,
+      Function<T, T> transform,
+      Function<U, ObjectInserter> mapper) {
+    ObjectInserter objectInserter =
+        new ObjectInserter() {
+          private T state = initialState;
+
+          @Override
+          public void accept(ObjectValue objectValue) {
+            U nextState;
+            synchronized (this) {
+              nextState = extract.apply(state);
+              state = transform.apply(state);
+            }
+            mapper.apply(nextState).accept(objectValue);
+          }
+        };
+    this.inserterFactories.add(factory.insertFromObjectInserter(objectInserter));
+    return this;
+  }
+
+  public ContextDocumentGeneratorBuilder field(ObjectInserter inserter) {
+    this.inserterFactories.add(factory.insertFromObjectInserter(inserter));
     return this;
   }
 

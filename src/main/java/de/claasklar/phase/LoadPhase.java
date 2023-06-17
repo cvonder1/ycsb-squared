@@ -10,10 +10,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LoadPhase {
-  private static final int NUM_THREADS = Runtime.getRuntime().availableProcessors() * 5;
   private static final Logger logger = LoggerFactory.getLogger(LoadPhase.class);
   private final PrimaryWriteSpecification primaryWriteSpecification;
   private final long targetCount;
+  private final int numThreads;
   private final Span applicationSpan;
   private final ExecutorService executor;
   private final Semaphore semaphore;
@@ -24,11 +24,26 @@ public class LoadPhase {
       long targetCount,
       Span applicationSpan,
       Tracer tracer) {
+    this(
+        primaryWriteSpecification,
+        targetCount,
+        Runtime.getRuntime().availableProcessors() * 4,
+        applicationSpan,
+        tracer);
+  }
+
+  public LoadPhase(
+      PrimaryWriteSpecification primaryWriteSpecification,
+      long targetCount,
+      int numThreads,
+      Span applicationSpan,
+      Tracer tracer) {
     this.primaryWriteSpecification = primaryWriteSpecification;
     this.targetCount = targetCount;
+    this.numThreads = numThreads;
     this.applicationSpan = applicationSpan;
-    this.executor = Executors.newFixedThreadPool(NUM_THREADS);
-    this.semaphore = new Semaphore(NUM_THREADS);
+    this.executor = Executors.newFixedThreadPool(numThreads);
+    this.semaphore = new Semaphore(numThreads);
     this.tracer = tracer;
   }
 

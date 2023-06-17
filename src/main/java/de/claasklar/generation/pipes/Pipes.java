@@ -4,15 +4,7 @@ import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.ReadContext;
 import com.jayway.jsonpath.internal.ParseContextImpl;
 import de.claasklar.primitives.CollectionName;
-import de.claasklar.primitives.document.ArrayValue;
-import de.claasklar.primitives.document.BoolValue;
-import de.claasklar.primitives.document.ByteValue;
-import de.claasklar.primitives.document.DoubleValue;
-import de.claasklar.primitives.document.NestedObjectValue;
-import de.claasklar.primitives.document.ObjectValue;
-import de.claasklar.primitives.document.OurDocument;
-import de.claasklar.primitives.document.StringValue;
-import de.claasklar.primitives.document.Value;
+import de.claasklar.primitives.document.*;
 import java.awt.geom.Arc2D.Float;
 import java.util.Arrays;
 import java.util.List;
@@ -72,6 +64,10 @@ public class Pipes {
       return this.pipe
           .pipe(input -> (Map<String, ?>) input)
           .pipe(input -> (ObjectValue) toValue(input));
+    }
+
+    public Pipe<Map<CollectionName, OurDocument[]>, Id> toId() {
+      return this.pipe.pipe(input -> (byte[]) input).pipe(Id::new);
     }
 
     private Value toValue(Object o) {
