@@ -450,7 +450,7 @@ public class SSB {
             .build()
             .histogramBuilder("transaction_duration")
             .ofLongs()
-            .setUnit("us")
+            .setUnit("ms")
             .setDescription(
                 "Tracks duration of transactions across all specifications. Attributes give more detail about collection and operation.")
             .build();

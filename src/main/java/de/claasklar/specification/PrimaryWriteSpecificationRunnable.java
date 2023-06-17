@@ -10,6 +10,7 @@ import de.claasklar.random.distribution.reference.ReferencesDistribution;
 import de.claasklar.random.distribution.reference.ReferencesRunnable;
 import de.claasklar.util.MapCollector;
 import de.claasklar.util.Pair;
+import de.claasklar.util.TelemetryConfig;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.trace.Span;
@@ -86,7 +87,7 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
       idStore.store(collectionName, id);
       this.document = document;
       this.wasRun = true;
-      histogram.record(start.until(clock.instant(), ChronoUnit.MICROS), attributes);
+      histogram.record(start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION), attributes);
     } catch (Exception e) {
       span.setStatus(StatusCode.ERROR, "Could not create primary document with the id " + id);
       span.recordException(e);

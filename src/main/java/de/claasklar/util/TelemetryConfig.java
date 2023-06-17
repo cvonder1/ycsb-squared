@@ -18,6 +18,8 @@ import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
 import io.opentelemetry.sdk.trace.samplers.SamplingResult;
 import io.opentelemetry.semconv.resource.attributes.ResourceAttributes;
+
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Random;
 
@@ -26,6 +28,7 @@ public class TelemetryConfig {
   public static final String METRIC_SCOPE_NAME = "de.claasklar.ycsb-squared";
   public static final String INSTRUMENTATION_SCOPE_NAME = "de.claasklar.ycsb-squared";
   public static final String APPLICATION_SPAN_NAME = "complete_benchmark";
+  public static final ChronoUnit DURATION_RESOLUTION = ChronoUnit.MILLIS;
   private static String version = null;
 
   public static String version() {

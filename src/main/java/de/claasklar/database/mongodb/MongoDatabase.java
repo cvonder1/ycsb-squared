@@ -20,6 +20,7 @@ import de.claasklar.primitives.query.Find;
 import de.claasklar.primitives.query.FindOptions;
 import de.claasklar.primitives.query.Query;
 import de.claasklar.util.Pair;
+import de.claasklar.util.TelemetryConfig;
 import de.claasklar.util.TelemetryUtil;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongHistogram;
@@ -78,7 +79,7 @@ public class MongoDatabase implements Database {
       var start = clock.instant();
       collections.get(collectionName).insertOne(document);
       histogram.record(
-          start.until(clock.instant(), ChronoUnit.MICROS),
+          start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION),
           Attributes.of(
               stringKey("collection"), collectionName.toString(), stringKey("operation"), "WRITE"));
       return document;
@@ -103,7 +104,7 @@ public class MongoDatabase implements Database {
       var start = clock.instant();
       var document = collections.get(collectionName).find(eq("_id", id)).first();
       histogram.record(
-          start.until(clock.instant(), ChronoUnit.MICROS),
+          start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION),
           Attributes.of(
               stringKey("collection"), collectionName.toString(), stringKey("operation"), "READ"));
       if (document == null) {
@@ -186,7 +187,7 @@ public class MongoDatabase implements Database {
           "query executed", Attributes.of(stringKey("count"), Integer.toString(count.value)));
     }
     histogram.record(
-        start.until(clock.instant(), ChronoUnit.MICROS),
+        start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION),
         Attributes.of(
             stringKey("collection"),
             find.getCollectionName().toString(),
@@ -265,7 +266,7 @@ public class MongoDatabase implements Database {
           "query executed", Attributes.of(stringKey("count"), Integer.toString(count.value)));
     }
     histogram.record(
-        start.until(clock.instant(), ChronoUnit.MICROS),
+        start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION),
         Attributes.of(
             stringKey("collection"),
             aggregation.getCollectionName().toString(),

@@ -148,7 +148,7 @@ public class MongoDatabaseBuilder {
             .build()
             .histogramBuilder("database_duration")
             .ofLongs()
-            .setUnit("us")
+            .setUnit("ms")
             .setDescription("Tracks duration of all database operations.")
             .build();
     return new MongoDatabase(

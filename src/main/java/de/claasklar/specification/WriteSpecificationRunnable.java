@@ -9,6 +9,7 @@ import de.claasklar.primitives.document.OurDocument;
 import de.claasklar.random.distribution.reference.ReferencesDistribution;
 import de.claasklar.util.MapCollector;
 import de.claasklar.util.Pair;
+import de.claasklar.util.TelemetryConfig;
 import de.claasklar.util.TelemetryUtil;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongHistogram;
@@ -17,7 +18,6 @@ import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import java.time.Clock;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 
@@ -80,7 +80,7 @@ public class WriteSpecificationRunnable implements Runnable {
       this.document = database.write(collectionName, document, runSpan);
       this.done = true;
       this.idStore.store(collectionName, idLong);
-      histogram.record(start.until(clock.instant(), ChronoUnit.MICROS), attributes);
+      histogram.record(start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION), attributes);
     } catch (Exception e) {
       runSpan.setStatus(StatusCode.ERROR);
       runSpan.recordException(e);
