@@ -1,11 +1,15 @@
 package de.claasklar.random.distribution.document;
 
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
+
 import de.claasklar.database.Database;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.*;
@@ -49,28 +53,46 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
    */
   @Override
   public DocumentRunnable next(Span span) {
-    var queueSize = currentSize.get();
-    if (queueSize < bufferSize) {
-      this.fillQueue(50);
-    }
-    IdLong nextId = queue.poll();
-
-    for (int i = 0; i < 20 && nextId == null; i++) {
-      logger
-          .atWarn()
-          .log("No id in queue for the {}-nth time for the collection {}", i, collectionName);
-      try {
-        Thread.sleep(100);
-      } catch (InterruptedException e) {
-        throw new IllegalStateException("could not obtain new id, thread was interrupted");
+    var nextBufferingSpan =
+        tracer
+            .spanBuilder("get one document from buffer")
+            .setParent(Context.current().with(span))
+            .startSpan();
+    try {
+      var queueSize = currentSize.get();
+      if (queueSize < bufferSize) {
+        this.fillQueue(50);
       }
-      nextId = queue.poll();
+      IdLong nextId = queue.poll();
+
+      for (int i = 0; i < 50 && nextId == null; i++) {
+        logger.atDebug().log(
+            "No id in queue for the {}-nth time for the collection {}", i, collectionName);
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e) {
+          throw new IllegalStateException("could not obtain new id, thread was interrupted");
+        }
+        nextId = queue.poll();
+      }
+      if (nextId == null) {
+        throw new IllegalStateException("could not obtain new id, no id in queue");
+      }
+      currentSize.decrementAndGet();
+      return new ReadDocumentRunnable(collectionName, nextId, span, database, tracer);
+    } catch (Exception e) {
+      nextBufferingSpan.setStatus(StatusCode.ERROR);
+      nextBufferingSpan.recordException(
+          e,
+          Attributes.of(
+              stringKey("currentSize"),
+              Integer.toString(currentSize.get()),
+              stringKey("waitingSize"),
+              Integer.toString(waitingSize.get())));
+      throw e;
+    } finally {
+      nextBufferingSpan.end();
     }
-    if (nextId == null) {
-      throw new IllegalStateException("could not obtain new id, no id in queue");
-    }
-    currentSize.decrementAndGet();
-    return new ReadDocumentRunnable(collectionName, nextId, span, database, tracer);
   }
 
   private void fillQueue(int numElements) {

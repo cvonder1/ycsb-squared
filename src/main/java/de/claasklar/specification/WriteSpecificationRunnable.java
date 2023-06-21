@@ -80,7 +80,8 @@ public class WriteSpecificationRunnable implements Runnable {
       this.document = database.write(collectionName, document, runSpan);
       this.done = true;
       this.idStore.store(collectionName, idLong);
-      histogram.record(start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION), attributes);
+      histogram.record(
+          start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION), attributes);
     } catch (Exception e) {
       runSpan.setStatus(StatusCode.ERROR);
       runSpan.recordException(e);

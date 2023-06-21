@@ -19,6 +19,10 @@ services:
       - "127.0.0.1:14270:14270"
       # ui
       - "127.0.0.1:16686:16686"
+    deploy:
+      resources:
+        limits:
+          memory: '1G'
   prometheus:
     # v2.44.0
     image: "quay.io/prometheus/prometheus@sha256:0f0b7feb6f02620df7d493ad7437b6ee95b6d16d8d18799f3607124e501444b1"
@@ -26,8 +30,20 @@ services:
       - "127.0.0.1:9090:9090"
     volumes:
       - "./prometheus:/etc/prometheus:ro"
+    deploy:
+      resources:
+        limits:
+          memory: '1G'
   mongodb:
     image: "registry.hub.docker.com/mongodb/mongodb-community-server:6.0.4-ubi8-20230524T062919Z"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: '8G'
+        reservations:
+          cpus: '2'
+          memory: '8G'
   ycsb-squared:
     image: "ycsb-squared"
     build:
@@ -37,3 +53,11 @@ services:
       - "jaeger"
       - "prometheus"
       - "mongodb"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: '3G'
+        reservations:
+          cpus: '1'
+          memory: '3G'

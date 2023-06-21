@@ -18,7 +18,6 @@ import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
 import io.opentelemetry.sdk.trace.samplers.Sampler;
 import io.opentelemetry.sdk.trace.samplers.SamplingResult;
 import io.opentelemetry.semconv.resource.attributes.ResourceAttributes;
-
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Random;
@@ -50,7 +49,7 @@ public class TelemetryConfig {
                         OtlpGrpcSpanExporter.builder().setEndpoint("http://jaeger:4317").build())
                     .build())
             .setResource(resource)
-            .setSampler(new CustomAlwaysSampler(parentBased(traceIdRatioBased(1))))
+            .setSampler(new CustomAlwaysSampler(parentBased(traceIdRatioBased(0.02))))
             .build();
 
     SdkMeterProvider sdkMeterProvider =

@@ -9,7 +9,6 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import java.time.Clock;
-import java.time.temporal.ChronoUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +48,8 @@ public class ReadSpecificationRunnable implements Runnable {
       var query = queryGenerator.generateQuery(readSpecificationName);
       var start = clock.instant();
       database.executeQuery(query, span);
-      histogram.record(start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION), attributes);
+      histogram.record(
+          start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION), attributes);
     } catch (Exception e) {
       span.setStatus(StatusCode.ERROR);
       span.recordException(e);

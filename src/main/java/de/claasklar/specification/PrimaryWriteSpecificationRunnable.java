@@ -17,7 +17,6 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import java.time.Clock;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -87,7 +86,8 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
       idStore.store(collectionName, id);
       this.document = document;
       this.wasRun = true;
-      histogram.record(start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION), attributes);
+      histogram.record(
+          start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION), attributes);
     } catch (Exception e) {
       span.setStatus(StatusCode.ERROR, "Could not create primary document with the id " + id);
       span.recordException(e);

@@ -1275,7 +1275,7 @@ public class SSB {
             new LoadPhase(
                 lineOrderWriteSpecification,
                 scaleFactor * 6_000_000L,
-                200,
+                100,
                 applicationSpan,
                 tracer),
             new PowerTestTransactionPhase(
