@@ -22,7 +22,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: '1G'
+          memory: '2G'
   prometheus:
     # v2.44.0
     image: "quay.io/prometheus/prometheus@sha256:0f0b7feb6f02620df7d493ad7437b6ee95b6d16d8d18799f3607124e501444b1"

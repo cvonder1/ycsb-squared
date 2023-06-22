@@ -1,7 +1,5 @@
 package de.claasklar.benchmark;
 
-import static com.mongodb.client.model.Aggregates.*;
-import static com.mongodb.client.model.Filters.*;
 import static de.claasklar.primitives.document.ArrayValue.array;
 import static de.claasklar.primitives.document.IntValue.integer;
 import static de.claasklar.primitives.document.NestedObjectValue.object;
@@ -23,7 +21,14 @@ import de.claasklar.phase.IndexPhase;
 import de.claasklar.phase.LoadPhase;
 import de.claasklar.phase.PowerTestTransactionPhase;
 import de.claasklar.primitives.CollectionName;
-import de.claasklar.primitives.document.*;
+import de.claasklar.primitives.document.BoolValue;
+import de.claasklar.primitives.document.IntValue;
+import de.claasklar.primitives.document.LongValue;
+import de.claasklar.primitives.document.NestedObjectValue;
+import de.claasklar.primitives.document.NullValue;
+import de.claasklar.primitives.document.ObjectValue;
+import de.claasklar.primitives.document.StringValue;
+import de.claasklar.primitives.document.Value;
 import de.claasklar.primitives.index.IndexConfiguration;
 import de.claasklar.primitives.query.AggregationOptions;
 import de.claasklar.random.distribution.RandomNumberGenerator;
@@ -40,7 +45,14 @@ import de.claasklar.specification.WriteSpecificationRegistry;
 import de.claasklar.util.Pair;
 import de.claasklar.util.TelemetryConfig;
 import io.opentelemetry.api.trace.Span;
-import java.time.*;
+import io.opentelemetry.extension.incubator.metrics.ExtendedLongHistogramBuilder;
+import java.time.Clock;
+import java.time.DayOfWeek;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.Month;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -444,12 +456,15 @@ public class SSB {
     var threadExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     var transactionDurationHistogram =
-        openTelemetry
-            .meterBuilder(TelemetryConfig.METRIC_SCOPE_NAME)
-            .setInstrumentationVersion(TelemetryConfig.version())
-            .build()
-            .histogramBuilder("transaction_duration")
-            .ofLongs()
+        ((ExtendedLongHistogramBuilder)
+                openTelemetry
+                    .meterBuilder(TelemetryConfig.METRIC_SCOPE_NAME)
+                    .setInstrumentationVersion(TelemetryConfig.version())
+                    .build()
+                    .histogramBuilder("transaction_duration")
+                    .ofLongs())
+            .setAdvice(
+                advice -> advice.setExplicitBucketBoundaries(TelemetryConfig.bucketBoundaries()))
             .setUnit("ms")
             .setDescription(
                 "Tracks duration of transactions across all specifications. Attributes give more detail about collection and operation.")
@@ -1288,6 +1303,8 @@ public class SSB {
             applicationSpan),
         applicationSpan);
   }
+
+  public static Benchmark createSSBEmbedded(long scaleFactor) {}
 
   private static ObjectInserter nationAndPhoneInserter(RandomNumberGenerator random) {
     return (it) -> {
