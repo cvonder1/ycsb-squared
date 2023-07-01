@@ -15,10 +15,10 @@ public class Main {
 
   public static void main(String[] args) throws InterruptedException {
 
-    var config = SSB.createSSBDenormalized(1);
-    var span = config.second();
+    var benchmark = SSB.createSSBDenormalized(1);
+    var span = benchmark.getApplicationSpan();
     try {
-      config.first().runAll();
+      benchmark.runAll();
     } catch (Exception e) {
       span.recordException(e);
       span.setStatus(StatusCode.ERROR);

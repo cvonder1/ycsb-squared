@@ -1,9 +1,7 @@
 package de.claasklar.specification;
 
 import de.claasklar.primitives.CollectionName;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 public class WriteSpecificationRegistry {
   private final Map<CollectionName, WriteSpecification> writeSpecificationMap;
@@ -23,5 +21,9 @@ public class WriteSpecificationRegistry {
 
   public void register(WriteSpecification specification) {
     writeSpecificationMap.put(specification.getCollectionName(), specification);
+  }
+
+  public Set<CollectionName> allCollectionNames() {
+    return writeSpecificationMap.keySet();
   }
 }

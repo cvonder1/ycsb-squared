@@ -72,4 +72,8 @@ public class Benchmark {
       Thread.sleep(Duration.ofSeconds(10));
     }
   }
+
+  public Span getApplicationSpan() {
+    return applicationSpan;
+  }
 }
