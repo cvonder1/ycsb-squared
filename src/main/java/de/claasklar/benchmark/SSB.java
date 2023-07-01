@@ -16,6 +16,7 @@ import de.claasklar.generation.ContextlessDocumentGeneratorBuilder;
 import de.claasklar.generation.SameAggregationGenerator;
 import de.claasklar.generation.inserters.FixedKeyObjectInserter;
 import de.claasklar.generation.inserters.ObjectInserter;
+import de.claasklar.generation.pipes.Pipes.PipeBuilder;
 import de.claasklar.idStore.InMemoryIdStore;
 import de.claasklar.phase.IndexPhase;
 import de.claasklar.phase.LoadPhase;
@@ -1304,7 +1305,811 @@ public class SSB {
         applicationSpan);
   }
 
-  public static Benchmark createSSBEmbedded(long scaleFactor) {}
+  public static Pair<Benchmark, Span> createSSBEmbedded(long scaleFactor) {
+    var openTelemetry = TelemetryConfig.buildOpenTelemetry();
+    var threadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+
+    var transactionDurationHistogram =
+        ((ExtendedLongHistogramBuilder)
+                openTelemetry
+                    .meterBuilder(TelemetryConfig.METRIC_SCOPE_NAME)
+                    .setInstrumentationVersion(TelemetryConfig.version())
+                    .build()
+                    .histogramBuilder("transaction_duration")
+                    .ofLongs())
+            .setAdvice(
+                advice -> advice.setExplicitBucketBoundaries(TelemetryConfig.bucketBoundaries()))
+            .setUnit("ms")
+            .setDescription(
+                "Tracks duration of transactions across all specifications. Attributes give more detail about collection and operation.")
+            .build();
+    var tracer =
+        openTelemetry.getTracer(
+            TelemetryConfig.INSTRUMENTATION_SCOPE_NAME, TelemetryConfig.version());
+    var applicationSpan = tracer.spanBuilder(TelemetryConfig.APPLICATION_SPAN_NAME).startSpan();
+
+    var random = new StdRandomNumberGenerator();
+
+    var idStore = new InMemoryIdStore();
+    var allCollections =
+        List.of(
+            new CollectionName("customers"),
+            new CollectionName("parts"),
+            new CollectionName("suppliers"),
+            new CollectionName("dates"),
+            new CollectionName("lineOrders"));
+    var database =
+        MongoDatabaseBuilder.builder()
+            .databaseName(TelemetryConfig.version())
+            .connectionString(new ConnectionString("mongodb://mongodb"))
+            .openTelemetry(openTelemetry)
+            .tracer(tracer)
+            .collections(allCollections)
+            .databaseReadConcern(ReadConcern.DEFAULT)
+            .databaseWriteConcern(WriteConcern.JOURNALED)
+            .databaseReadPreference(ReadPreference.nearest())
+            .build();
+    var registry = new WriteSpecificationRegistry();
+
+    var supplierDocumentGenerator =
+        ContextlessDocumentGeneratorBuilder.builder()
+            .field(
+                "name",
+                s ->
+                    s.prefixedRandomString(
+                        "Supplier", () -> Long.toString(random.nextLong(0, 999999999999999999L))))
+            .field(
+                "address",
+                s ->
+                    s.ssbRandomLengthString(
+                        (int) (S_ADDR_LEN * V_STR_LOW), (int) (S_ADDR_LEN * V_STR_HIGH) + 1))
+            .field(nationAndPhoneInserter(random))
+            .build();
+    var supplierWriteSpecification =
+        new WriteSpecification(
+            new CollectionName("suppliers"),
+            supplierDocumentGenerator,
+            new ReferencesDistribution[0],
+            database,
+            idStore,
+            threadExecutor,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+    registry.register(supplierWriteSpecification);
+
+    var customerDocumentGenerator =
+        ContextlessDocumentGeneratorBuilder.builder()
+            .field(
+                "name",
+                s ->
+                    s.prefixedRandomString(
+                        "Customer", () -> Long.toString(random.nextLong(0, 999999999999999999L))))
+            .field(
+                "address",
+                s ->
+                    s.ssbRandomLengthString(
+                        (int) (C_ADDR_LEN * V_STR_LOW), (int) (C_ADDR_LEN * V_STR_HIGH) + 1))
+            .field(nationAndPhoneInserter(random))
+            .field("mktsegment", s -> s.uniformSelection(segments))
+            .build();
+    var customerWriteSpecification =
+        new WriteSpecification(
+            new CollectionName("customers"),
+            customerDocumentGenerator,
+            new ReferencesDistribution[0],
+            database,
+            idStore,
+            threadExecutor,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+    registry.register(customerWriteSpecification);
+
+    var partDocumentGenerator =
+        ContextlessDocumentGeneratorBuilder.builder()
+            .field("name", s -> s.selectNonRepeating(colors, 2, ((s1, s2) -> s1 + " " + s2)))
+            .field("color", s -> s.uniformSelection(colors))
+            .field(
+                (it) -> {
+                  var mfgr = "MFGR#" + random.nextInt(P_MFG_MIN, P_MFG_MAX + 1);
+                  var cat = mfgr + random.nextInt(P_CAT_MIN, P_CAT_MAX + 1);
+                  var brand = cat + random.nextInt(P_BRAND_MIN, P_BRAND_MAX + 1);
+                  new FixedKeyObjectInserter("mfgr", () -> new StringValue(mfgr))
+                      .andThen(new FixedKeyObjectInserter("category", () -> new StringValue(cat)))
+                      .andThen(new FixedKeyObjectInserter("brand1", () -> new StringValue(brand)))
+                      .accept(it);
+                })
+            .field("type", s -> s.uniformSelection(types))
+            .field("size", s -> s.uniformIntSupplier(P_SIZE_MIN, P_SIZE_MAX + 1))
+            .field("container", s -> s.uniformSelection(containers))
+            .build();
+    var partWriteSpecification =
+        new WriteSpecification(
+            new CollectionName("parts"),
+            partDocumentGenerator,
+            new ReferencesDistribution[0],
+            database,
+            idStore,
+            threadExecutor,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+    registry.register(partWriteSpecification);
+
+    var dateDocumentGenerator =
+        ContextlessDocumentGeneratorBuilder.builder()
+            .field(
+                new ObjectInserter() {
+                  private final DateTimeFormatter dateTimeFormatter =
+                      DateTimeFormatter.ofPattern("MMMM d, yyyy");
+                  private final AtomicLong state = new AtomicLong(0);
+
+                  @Override
+                  public void accept(ObjectValue objectValue) {
+                    var currentState = state.getAndIncrement();
+                    var nextDate = D_START_DATE.plus(currentState, ChronoUnit.DAYS);
+
+                    objectValue.put("date", new StringValue(nextDate.format(dateTimeFormatter)));
+                    objectValue.put("dayofweek", new StringValue(nextDate.getDayOfWeek().name()));
+                    objectValue.put("month", new StringValue(nextDate.getMonth().name()));
+                    objectValue.put("year", new IntValue(nextDate.getYear()));
+                    objectValue.put(
+                        "yearmonthnum",
+                        new IntValue(nextDate.getYear() * 100 + nextDate.getMonth().ordinal() + 1));
+                    objectValue.put(
+                        "yearmonth",
+                        new StringValue(
+                            (nextDate.getMonth().name() + " ").substring(0, 3)
+                                + nextDate.getYear()));
+                    objectValue.put(
+                        "daynuminweek",
+                        new IntValue((nextDate.getDayOfWeek().ordinal() + 1) % 7 + 1));
+                    objectValue.put("daynuminmonth", new IntValue(nextDate.getDayOfMonth()));
+                    objectValue.put("daynuminyear", new IntValue(nextDate.getDayOfYear()));
+                    objectValue.put("monthnuminyear", new IntValue(nextDate.getMonthValue()));
+                    objectValue.put("weeknuminyear", new IntValue(nextDate.getDayOfYear() / 7 + 1));
+                    objectValue.put("sellingseason", genSeason(nextDate));
+                    objectValue.put(
+                        "lastdayinweekfl",
+                        new BoolValue(nextDate.getDayOfWeek() == DayOfWeek.SATURDAY));
+                    objectValue.put("lastdayinmonthfl", new BoolValue(isLastDayOfMonth(nextDate)));
+                    objectValue.put("holidayfl", new BoolValue(isHoliday(nextDate)));
+                    objectValue.put(
+                        "weekdayfl", new BoolValue(nextDate.getDayOfWeek().ordinal() < 6));
+                  }
+                })
+            .build();
+    var dateWriteSpecification =
+        new WriteSpecification(
+            new CollectionName("dates"),
+            dateDocumentGenerator,
+            new ReferencesDistribution[0],
+            database,
+            idStore,
+            threadExecutor,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+    registry.register(dateWriteSpecification);
+
+    var lineOrderDocumentGenerator =
+        ContextDocumentGeneratorBuilder.builder()
+            .field("linenumber", s -> s.uniformIntSupplier(O_LCNT_MIN, O_LCNT_MAX))
+            .fieldFromPipe(
+                "customer",
+                f -> f.selectCollection(new CollectionName("customers"), PipeBuilder::toObject))
+            .fieldFromPipe(
+                "part", f -> f.selectCollection(new CollectionName("parts"), PipeBuilder::toObject))
+            .fieldFromPipe(
+                "supplier",
+                f -> f.selectCollection(new CollectionName("suppliers"), PipeBuilder::toObject))
+            .fieldFromPipe(
+                "orderdate",
+                f -> f.selectCollection(new CollectionName("dates"), PipeBuilder::toObject))
+            .field("orderpriority", s -> s.uniformSelection(priorities))
+            .field("shippriority", s -> s.fixedString("0"))
+            .field(
+                (object) -> {
+                  var quantity = random.nextLong(L_QTY_MIN, L_QTY_MAX + 1);
+                  var rprice = rpbRoutine(random);
+                  var extendedPrice = rprice * quantity;
+                  var discount = random.nextLong(L_DCNT_MIN, L_DCNT_MAX + 1);
+                  var revenue = extendedPrice * (100 - discount) / PENNIES;
+                  long supplyCost = 6 * rprice / 10;
+
+                  object.put("quantity", new LongValue(quantity));
+                  object.put("extendedprice", new LongValue(extendedPrice));
+                  object.put("discount", new LongValue(discount));
+                  object.put("revenue", new LongValue(revenue));
+                  object.put("supplycost", new LongValue(supplyCost));
+                })
+            .field("ordtotalprice", s -> s.uniformLongSupplier(O_TOTAL_MIN, O_TOTAL_MAX))
+            .field("tax", s -> s.uniformIntSupplier(L_TAX_MIN, L_TAX_MAX + 1))
+            .fieldFromPipe(
+                "commitdate",
+                f -> f.selectCollection(new CollectionName("dates"), PipeBuilder::toObject))
+            .field("shipmode", s -> s.uniformSelection(shipModes))
+            .build();
+    var lineOrderWriteSpecification =
+        new PrimaryWriteSpecification(
+            new CollectionName("lineOrders"),
+            new ReferencesDistribution[] {
+              new ConstantNumberReferencesDistribution(
+                  1,
+                  new SimpleDocumentDistribution(
+                      new CollectionName("customers"),
+                      new UniformIdDistribution(scaleFactor * 30_000L, random),
+                      idStore,
+                      database,
+                      registry,
+                      tracer),
+                  threadExecutor),
+              new ConstantNumberReferencesDistribution(
+                  1,
+                  new SimpleDocumentDistribution(
+                      new CollectionName("parts"),
+                      new UniformIdDistribution(
+                          200_000
+                              * ((long) Math.floor(1 + (Math.log(scaleFactor) / Math.log(2.0)))),
+                          random),
+                      idStore,
+                      database,
+                      registry,
+                      tracer),
+                  threadExecutor),
+              new ConstantNumberReferencesDistribution(
+                  1,
+                  new ExistingDocumentDistribution(
+                      50,
+                      new SimpleDocumentDistribution(
+                          new CollectionName("suppliers"),
+                          new UniformIdDistribution(scaleFactor * 2_000L, random),
+                          idStore,
+                          database,
+                          registry,
+                          tracer),
+                      database,
+                      Executors.newFixedThreadPool(1),
+                      tracer),
+                  threadExecutor),
+              new ConstantNumberReferencesDistribution(
+                  2,
+                  new ExistingDocumentDistribution(
+                      50,
+                      new SimpleDocumentDistribution(
+                          new CollectionName("dates"),
+                          new UniformIdDistribution(
+                              D_START_DATE.until(D_END_DATE, ChronoUnit.DAYS), random),
+                          idStore,
+                          database,
+                          registry,
+                          tracer),
+                      database,
+                      Executors.newFixedThreadPool(1),
+                      tracer),
+                  threadExecutor)
+            },
+            lineOrderDocumentGenerator,
+            database,
+            threadExecutor,
+            transactionDurationHistogram,
+            idStore,
+            tracer,
+            Clock.systemUTC());
+
+    var q1_1Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object(
+                            "$match",
+                            object(
+                                "discount",
+                                object("$gte", integer(1), "$lte", integer(3)),
+                                "quantity",
+                                object("$lte", integer(25)))),
+                        object("$match", object("orderdate.year", integer(1993))),
+                        revenue())));
+    var q1_1 =
+        new ReadSpecification(
+            "q1.1",
+            q1_1Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var q1_2Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object(
+                            "$match",
+                            object(
+                                "discount",
+                                object("$gte", integer(4), "$lte", integer(6)),
+                                "quantity",
+                                object("$gte", integer(26), "$lte", integer(35)))),
+                        object("$match", object("orderdate.yearmonthnum", integer(199401))),
+                        revenue())));
+    var q1_2 =
+        new ReadSpecification(
+            "q1.2",
+            q1_2Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var q1_3Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object(
+                            "$match",
+                            object(
+                                "discount",
+                                object("$gte", integer(5), "$lte", integer(7)),
+                                "quantity",
+                                object("$gte", integer(26), "$lte", integer(35)))),
+                        object(
+                            "$match",
+                            object(
+                                "orderdate.weeknuminyear",
+                                integer(6),
+                                "orderdate.year",
+                                integer(1994))),
+                        revenue())));
+    var q1_3 =
+        new ReadSpecification(
+            "q1.3",
+            q1_3Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var q2_1Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object("$match", object("part.category", string("MFGR#12"))),
+                        object("$match", object("supplier.region", string("AMERICA"))),
+                        object(
+                            "$group",
+                            object(
+                                "_id",
+                                object(
+                                    "d_year",
+                                    string("$orderdate.year"),
+                                    "p_brand",
+                                    string("$part.brand1")),
+                                "total_revenue",
+                                object("$sum", string("$revenue")))),
+                        object("$sort", object("_id.p_brand", integer(1))),
+                        object("$sort", object("_id.d_year", integer(1))))));
+    var q2_1 =
+        new ReadSpecification(
+            "q2.1",
+            q2_1Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var q2_2Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object(
+                            "$match",
+                            object(
+                                "part.brand1",
+                                object(
+                                    "$in",
+                                    array(
+                                        string("MFGR#2221"),
+                                        string("MFGR#2222"),
+                                        string("MFGR#2223"),
+                                        string("MFGR#2224"),
+                                        string("MFGR#2225"),
+                                        string("MFGR#2226"),
+                                        string("MFGR#2227"),
+                                        string("MFGR#2228"))))),
+                        object("$match", object("supplier.region", string("ASIA"))),
+                        object(
+                            "$group",
+                            object(
+                                "_id",
+                                object(
+                                    "d_year",
+                                    string("$orderdate.year"),
+                                    "p_brand",
+                                    string("$part.brand1")),
+                                "total_revenue",
+                                object("$sum", string("$revenue")))),
+                        object("$sort", object("_id.p_brand", integer(1))),
+                        object("$sort", object("_id.d_year", integer(1))))));
+
+    var q2_2 =
+        new ReadSpecification(
+            "q2.2",
+            q2_2Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var q2_3Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object("$match", object("part.brand1", string("MFGR#2221"))),
+                        object("$match", object("supplier.region", string("EUROPE"))),
+                        object(
+                            "$group",
+                            object(
+                                "_id",
+                                object(
+                                    "d_year",
+                                    string("$orderdate.year"),
+                                    "p_brand",
+                                    string("$part.brand1")),
+                                "total_revenue",
+                                object("$sum", string("$revenue")))),
+                        object("$sort", object("_id.p_brand", integer(1))),
+                        object("$sort", object("_id.d_year", integer(1))))));
+    var q2_3 =
+        new ReadSpecification(
+            "q2.3",
+            q2_3Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var q3_1Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object("$match", object("customer.region", string("ASIA"))),
+                        object("$match", object("supplier.region", string("ASIA"))),
+                        object(
+                            "$match",
+                            object(
+                                "orderdate.year",
+                                object("$gte", integer(1992), "$lte", integer(1997)))),
+                        object(
+                            "$group",
+                            object(
+                                "_id",
+                                object(
+                                    Map.of(
+                                        "c_nation",
+                                        string("$customer.nation"),
+                                        "s_nation",
+                                        string("$supplier.nation"),
+                                        "d_year",
+                                        string("$orderdate.year"))),
+                                "revenue",
+                                object("$sum", string("$revenue")))),
+                        object("$sort", object("d_year", integer(1), "revenue", integer(-1))))));
+    var q3_1 =
+        new ReadSpecification(
+            "q3.1",
+            q3_1Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var q3_2Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object("$match", object("customer.nation", string("UNITED STATES"))),
+                        object("$match", object("supplier.nation", string("UNITED STATES"))),
+                        object(
+                            "$match",
+                            object(
+                                "orderdate.year",
+                                object("$gte", integer(1992), "$lte", integer(1997)))),
+                        object(
+                            "$group",
+                            object(
+                                "_id",
+                                object(
+                                    Map.of(
+                                        "c_city",
+                                        string("$customer.city"),
+                                        "s_city",
+                                        string("$supplier.city"),
+                                        "d_year",
+                                        string("$orderdate.year"))),
+                                "revenue",
+                                object("$sum", string("$revenue")))),
+                        object("$sort", object("d_year", integer(1), "revenue", integer(-1))))));
+    var q3_2 =
+        new ReadSpecification(
+            "q3.2",
+            q3_2Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var q3_3Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object(
+                            "$match",
+                            object(
+                                "customer.city",
+                                object("$in", array(string("UNITED KI1"), string("UNITED KI5"))))),
+                        object(
+                            "$match",
+                            object(
+                                "supplier.city",
+                                object("$in", array(string("UNITED KI1"), string("UNITED KI5"))))),
+                        object(
+                            "$match",
+                            object(
+                                "orderdate.year",
+                                object("$gte", integer(1992), "$lte", integer(1997)))),
+                        object(
+                            "$group",
+                            object(
+                                "_id",
+                                object(
+                                    Map.of(
+                                        "c_city",
+                                        string("$customer.city"),
+                                        "s_city",
+                                        string("$supplier.city"),
+                                        "d_year",
+                                        string("$orderdate.year"))),
+                                "revenue",
+                                object("$sum", string("$revenue")))),
+                        object("$sort", object("d_year", integer(1), "revenue", integer(-1))))));
+    var q3_3 =
+        new ReadSpecification(
+            "q3.3",
+            q3_3Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var q3_4Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object(
+                            "$match",
+                            object(
+                                "customer.city",
+                                object("$in", array(string("UNITED KI1"), string("UNITED KI5"))))),
+                        object(
+                            "$match",
+                            object(
+                                "supplier.city",
+                                object("$in", array(string("UNITED KI1"), string("UNITED KI5"))))),
+                        object("$match", object("orderdate.yearmonth", string("DEC1997"))),
+                        object(
+                            "$group",
+                            object(
+                                "_id",
+                                object(
+                                    Map.of(
+                                        "c_city",
+                                        string("$customer.city"),
+                                        "s_city",
+                                        string("$supplier.city"),
+                                        "d_year",
+                                        string("$orderdate.year"))),
+                                "revenue",
+                                object("$sum", string("$revenue")))),
+                        object("$sort", object("d_year", integer(1), "revenue", integer(-1))))));
+    var q3_4 =
+        new ReadSpecification(
+            "q3.4",
+            q3_4Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var q4_1Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object("$match", object("customer.region", string("AMERICA"))),
+                        object("$match", object("supplier.region", string("AMERICA"))),
+                        object(
+                            "$match",
+                            object(
+                                "part.mfgr",
+                                object("$in", array(string("MFGR#1"), string("MFGR#2"))))),
+                        object(
+                            "$group",
+                            object(
+                                Map.of(
+                                    "_id",
+                                    object(
+                                        "d_year",
+                                        string("$orderdate.year"),
+                                        "c_nation",
+                                        string("$customer.nation")),
+                                    "totalrevenue",
+                                    object("$sum", string("$revenue")),
+                                    "totalsupplycost",
+                                    object("$sum", string("$supplycost"))))),
+                        object(
+                            "$addFields",
+                            object(
+                                "profit",
+                                object(
+                                    "$subtract",
+                                    array(string("$totalrevenue"), string("$totalsupplycost"))))),
+                        object("$sort", object("d_year", integer(1), "c_nation", integer(1))))));
+    var q4_1 =
+        new ReadSpecification(
+            "q4.1",
+            q4_1Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var q4_2Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object(
+                            "$match",
+                            object(
+                                "orderdate.year",
+                                object("$in", array(integer(1997), integer(1998))))),
+                        object("$match", object("customer.region", string("AMERICA"))),
+                        object("$match", object("supplier.region", string("AMERICA"))),
+                        object(
+                            "$match",
+                            object(
+                                "part.mfgr",
+                                object("$in", array(string("MFGR#1"), string("MFGR#2"))))),
+                        object(
+                            "$group",
+                            object(
+                                Map.of(
+                                    "_id",
+                                    object(
+                                        "d_year",
+                                        string("$orderdate.year"),
+                                        "c_nation",
+                                        string("$customer.nation")),
+                                    "totalrevenue",
+                                    object("$sum", string("$revenue")),
+                                    "totalsupplycost",
+                                    object("$sum", string("$supplycost"))))),
+                        object(
+                            "$addFields",
+                            object(
+                                "profit",
+                                object(
+                                    "$subtract",
+                                    array(string("$totalrevenue"), string("$totalsupplycost"))))),
+                        object("$sort", object("d_year", integer(1), "c_nation", integer(1))))));
+    var q4_2 =
+        new ReadSpecification(
+            "q4.2",
+            q4_2Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    var q4_3Generator =
+        new SameAggregationGenerator(
+            new CollectionName("lineOrders"),
+            AggregationOptions.aggregate("lineOrders")
+                .pipeline(
+                    List.of(
+                        object(
+                            "$match",
+                            object(
+                                "orderdate.year",
+                                object("$in", array(integer(1997), integer(1998))))),
+                        object("$match", object("customer.region", string("AMERICA"))),
+                        object("$match", object("supplier.nation", string("UNITED STATES"))),
+                        object("$match", object("part.category", string("MFGR#14"))),
+                        object(
+                            "$group",
+                            object(
+                                Map.of(
+                                    "_id",
+                                    object(
+                                        Map.of(
+                                            "d_year",
+                                            string("$orderdate.year"),
+                                            "s_city",
+                                            string("$supplier.city"),
+                                            "p_brand1",
+                                            string("$part.brand1"))),
+                                    "totalrevenue",
+                                    object("$sum", string("$revenue")),
+                                    "totalsupplycost",
+                                    object("$sum", string("$supplycost"))))),
+                        object(
+                            "$addFields",
+                            object(
+                                "profit",
+                                object(
+                                    "$subtract",
+                                    array(string("$totalrevenue"), string("$totalsupplycost"))))),
+                        object(
+                            "$sort",
+                            object(
+                                Map.of(
+                                    "d_year",
+                                    integer(1),
+                                    "s_city",
+                                    integer(1),
+                                    "p_brand1",
+                                    integer(1)))))));
+    var q4_3 =
+        new ReadSpecification(
+            "q4.3",
+            q4_3Generator,
+            database,
+            transactionDurationHistogram,
+            tracer,
+            Clock.systemUTC());
+
+    return new Pair<>(
+        new Benchmark(
+            new IndexPhase(new IndexConfiguration[0], database, applicationSpan, tracer),
+            new LoadPhase(
+                lineOrderWriteSpecification,
+                scaleFactor * 6_000_000L,
+                100,
+                applicationSpan,
+                tracer),
+            new PowerTestTransactionPhase(
+                List.of(
+                    q1_1, q1_2, q1_3, q2_1, q2_2, q2_3, q3_1, q3_2, q3_3, q3_4, q4_1, q4_2, q4_3),
+                applicationSpan,
+                tracer),
+            database,
+            List.of(threadExecutor),
+            applicationSpan),
+        applicationSpan);
+  }
 
   private static ObjectInserter nationAndPhoneInserter(RandomNumberGenerator random) {
     return (it) -> {

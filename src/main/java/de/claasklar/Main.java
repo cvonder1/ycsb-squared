@@ -12,7 +12,8 @@ public class Main {
 
   public static void main(String[] args) throws InterruptedException {
 
-    var config = SSB.createSSBDenormalized(1);
+    //    var config = SSB.createSSBDenormalized(1);
+    var config = SSB.createSSBEmbedded(1);
     var span = config.second();
     try {
       config.first().runAll();

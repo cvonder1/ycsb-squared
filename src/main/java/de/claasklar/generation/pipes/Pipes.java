@@ -1,17 +1,32 @@
 package de.claasklar.generation.pipes;
 
 import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.ReadContext;
 import com.jayway.jsonpath.internal.ParseContextImpl;
 import de.claasklar.primitives.CollectionName;
-import de.claasklar.primitives.document.*;
+import de.claasklar.primitives.document.ArrayValue;
+import de.claasklar.primitives.document.BoolValue;
+import de.claasklar.primitives.document.ByteValue;
+import de.claasklar.primitives.document.DoubleValue;
+import de.claasklar.primitives.document.Id;
+import de.claasklar.primitives.document.IntValue;
+import de.claasklar.primitives.document.LongValue;
+import de.claasklar.primitives.document.NestedObjectValue;
+import de.claasklar.primitives.document.NullValue;
+import de.claasklar.primitives.document.ObjectValue;
+import de.claasklar.primitives.document.OurDocument;
+import de.claasklar.primitives.document.StringValue;
+import de.claasklar.primitives.document.Value;
 import java.awt.geom.Arc2D.Float;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Pipes {
+
+  private static final Logger logger = LoggerFactory.getLogger(Pipes.class);
 
   public static PipeBuilder selectCollection(CollectionName collectionName) {
     return new PipeBuilder(collectionName);
@@ -24,27 +39,20 @@ public class Pipes {
     private Pipe<Map<CollectionName, OurDocument[]>, ?> pipe;
 
     public PipeBuilder(CollectionName collectionName) {
-      this.pipe =
-          (input) -> {
-            var collection =
-                Arrays.stream(input.get(collectionName))
-                    .map(ObjectValue::toBasicType)
-                    .collect(Collectors.toList());
-            return parseContext.parse(collection);
-          };
+      this.pipe = (input) -> input.get(collectionName);
     }
 
     public PipeBuilder selectByPath(String path) {
       var jsonPath = JsonPath.compile(path);
       this.pipe =
-          pipe.pipe(
-                  (input) -> {
-                    if (input instanceof ReadContext) {
-                      return (ReadContext) input;
-                    } else {
-                      return parseContext.parse(input);
-                    }
-                  })
+          pipe
+            .pipe((input) -> {
+              var collection =
+                Arrays.stream((OurDocument[]) input)
+                  .map(ObjectValue::toBasicType)
+                  .collect(Collectors.toList());
+              return parseContext.parse(collection);
+            })
               .pipe(input -> input.read(jsonPath));
       return this;
     }
@@ -62,8 +70,13 @@ public class Pipes {
 
     public Pipe<Map<CollectionName, OurDocument[]>, ObjectValue> toObject() {
       return this.pipe
-          .pipe(input -> (Map<String, ?>) input)
-          .pipe(input -> (ObjectValue) toValue(input));
+        .pipe(input -> {
+          if(((OurDocument[]) input).length > 0) {
+            return ((OurDocument[]) input)[0];
+          } else {
+            return NullValue.VALUE;
+          }
+        });
     }
 
     public Pipe<Map<CollectionName, OurDocument[]>, Id> toId() {
@@ -71,7 +84,10 @@ public class Pipes {
     }
 
     private Value toValue(Object o) {
-      if (o instanceof List) {
+      logger.atTrace().log(() -> "mapping class " + o.getClass());
+      if (o == null) {
+        return NullValue.VALUE;
+      } else if (o instanceof List) {
         var value = new ArrayValue();
         ((List<Object>) o).stream().map(it -> toValue(it)).forEach(it -> value.add(it));
         return value;
@@ -85,12 +101,16 @@ public class Pipes {
         return new ByteValue((byte[]) o);
       } else if (o instanceof String) {
         return new StringValue((String) o);
-      } else if (o instanceof Float) {
+      } else if (o instanceof Float || o instanceof Double) {
         return new DoubleValue((float) o);
       } else if (o instanceof Boolean) {
         return new BoolValue((boolean) o);
+      } else if (o instanceof Integer) {
+        return new IntValue((int) o);
+      } else if (o instanceof Long) {
+        return new LongValue((long) o);
       } else {
-        throw new IllegalArgumentException(o.toString() + " cannot be converted");
+        throw new IllegalArgumentException(o + " cannot be converted");
       }
     }
 
