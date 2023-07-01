@@ -1,9 +1,6 @@
 package de.claasklar;
 
-import static com.mongodb.client.model.Filters.*;
-
 import de.claasklar.benchmark.SSB;
-import de.claasklar.generation.*;
 import io.opentelemetry.api.trace.StatusCode;
 import java.time.Duration;
 import org.slf4j.Logger;

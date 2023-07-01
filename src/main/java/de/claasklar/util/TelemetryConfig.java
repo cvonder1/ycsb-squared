@@ -19,6 +19,7 @@ import io.opentelemetry.sdk.trace.samplers.Sampler;
 import io.opentelemetry.sdk.trace.samplers.SamplingResult;
 import io.opentelemetry.semconv.resource.attributes.ResourceAttributes;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
@@ -62,6 +63,23 @@ public class TelemetryConfig {
         .setTracerProvider(sdkTracerProvider)
         .setMeterProvider(sdkMeterProvider)
         .buildAndRegisterGlobal();
+  }
+
+  public static List<Double> bucketBoundaries() {
+    var bucketBoundaries = new LinkedList<Double>();
+    for (int i = 1; i < 11; i++) {
+      bucketBoundaries.add(i * 10d);
+    }
+    for (int i = 1; i < 10; i++) {
+      bucketBoundaries.add(i * 100d + 100);
+    }
+    for (int i = 1; i < 39; i++) {
+      bucketBoundaries.add(i * 500d + 1000);
+    }
+    for (int i = 1; i < 237; i++) {
+      bucketBoundaries.add(i * 5000d + 20000);
+    }
+    return bucketBoundaries;
   }
 
   private record CustomAlwaysSampler(Sampler delegate) implements Sampler {

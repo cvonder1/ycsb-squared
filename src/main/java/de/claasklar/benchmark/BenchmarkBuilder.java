@@ -29,6 +29,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.extension.incubator.metrics.ExtendedLongHistogramBuilder;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
@@ -71,12 +72,15 @@ public class BenchmarkBuilder {
         openTelemetry.getTracer(
             TelemetryConfig.INSTRUMENTATION_SCOPE_NAME, TelemetryConfig.version());
     this.transactionDurationHistogram =
-        openTelemetry
-            .meterBuilder(TelemetryConfig.METRIC_SCOPE_NAME)
-            .setInstrumentationVersion(TelemetryConfig.version())
-            .build()
-            .histogramBuilder("transaction_duration")
-            .ofLongs()
+        ((ExtendedLongHistogramBuilder)
+                openTelemetry
+                    .meterBuilder(TelemetryConfig.METRIC_SCOPE_NAME)
+                    .setInstrumentationVersion(TelemetryConfig.version())
+                    .build()
+                    .histogramBuilder("transaction_duration")
+                    .ofLongs())
+            .setAdvice(
+                advice -> advice.setExplicitBucketBoundaries(TelemetryConfig.bucketBoundaries()))
             .setUnit("ms")
             .setDescription(
                 "Tracks duration of transactions across all specifications. Attributes give more detail about collection and operation.")
