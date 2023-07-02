@@ -3,10 +3,8 @@ services:
     # v1.45
     image: "quay.io/jaegertracing/all-in-one@sha256:5d5c9d2d8c8cbb42f1db4aac1f1f8487bac63da6802004d0da8580fc0c7311a1"
     environment:
-      SPAN_STORAGE_TYPE: "badger"
-      BADGER_EPHEMERAL: "false"
-      BADGER_DIRECTORY_VALUE: "/badger/data"
-      BADGER_DIRECTORY_KEY: "/badger/key"
+      SPAN_STORAGE_TYPE: "elasticsearch"
+      ES_SERVER_URLS: "http://elasticsearch:9200"
       COLLECTOR_OTLP_ENABLED: true
     ports:
       # healthcheck admin
@@ -19,9 +17,26 @@ services:
       - "127.0.0.1:14270:14270"
       # ui
       - "127.0.0.1:16686:16686"
+    restart: "on-failure"
+
     deploy:
       resources:
         limits:
+          memory: '1G'
+    depends_on:
+      - "elasticsearch"
+  elasticsearch:
+    # v7.17.10
+    image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.10"
+    restart: "on-failure"
+    environment:
+      ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+      discovery.type: "single-node"
+    deploy:
+      resources:
+        limits:
+          memory: '2G'
+        reservations:
           memory: '2G'
   prometheus:
     # v2.44.0
@@ -30,6 +45,7 @@ services:
       - "127.0.0.1:9090:9090"
     volumes:
       - "./prometheus:/etc/prometheus:ro"
+    restart: "on-failure"
     deploy:
       resources:
         limits:
