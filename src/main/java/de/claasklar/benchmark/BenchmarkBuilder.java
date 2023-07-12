@@ -42,13 +42,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator;
 
 public class BenchmarkBuilder {
 
-  private Supplier<Database> databaseSupplier;
+  private Function<List<CollectionName>, Database> databaseSupplier;
   private final OpenTelemetry openTelemetry;
   private final Tracer tracer;
   private final LongHistogram transactionDurationHistogram;
@@ -112,7 +112,12 @@ public class BenchmarkBuilder {
       }
     }
 
-    database = databaseSupplier.get();
+    var allCollections =
+        Stream.concat(
+                writeSpecificationConfigs.stream().map(it -> it.collectionName),
+                primaryWriteSpecificationConfigs.values().stream().map(it -> it.collectionName))
+            .toList();
+    database = databaseSupplier.apply(allCollections);
     idStore = new InMemoryIdStore();
     executorService = Executors.newVirtualThreadPerTaskExecutor();
     clock = Clock.systemUTC();
@@ -282,12 +287,12 @@ public class BenchmarkBuilder {
     var mongoConfiguration = new MongoConfiguration();
     config.accept(mongoConfiguration);
     this.databaseSupplier =
-        () -> {
+        (allCollections) -> {
           var builder =
               MongoDatabaseBuilder.builder()
                   .databaseName(TelemetryConfig.version())
                   .connectionString(mongoConfiguration.connectionString)
-                  .collections(registry.allCollectionNames().stream().toList())
+                  .collections(allCollections)
                   .databaseReadConcern(mongoConfiguration.databaseReadConcern)
                   .databaseWriteConcern(mongoConfiguration.databaseWriteConcern)
                   .databaseReadPreference(mongoConfiguration.databaseReadPreference)

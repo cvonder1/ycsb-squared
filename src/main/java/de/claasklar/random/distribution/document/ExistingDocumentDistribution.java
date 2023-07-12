@@ -65,7 +65,7 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
       }
       IdLong nextId = queue.poll();
 
-      for (int i = 0; i < 50 && nextId == null; i++) {
+      for (int i = 0; i < 100 && nextId == null; i++) {
         logger.atDebug().log(
             "No id in queue for the {}-nth time for the collection {}", i, collectionName);
         try {

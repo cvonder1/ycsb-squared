@@ -462,11 +462,12 @@ public class SSB {
 
   public static Benchmark createSSBEmbedded(long scaleFactor) {
     return BenchmarkBuilder.builder()
+        .database(databaseConfig())
         .writeSpecification(writeSuppliersConfig())
         .writeSpecification(writeCustomersConfig())
         .writeSpecification(writePartsConfig())
         .writeSpecification(writeDatesConfig())
-        .writeSpecification(writeLineOrdersEmbeddedConfig(scaleFactor))
+        .primaryWriteSpecification("write_lineOrders", writeLineOrdersEmbeddedConfig(scaleFactor))
         .readSpecification(queryQ1_1EmbeddedConfig())
         .readSpecification(queryQ1_2EmbeddedConfig())
         .readSpecification(queryQ1_3EmbeddedConfig())
@@ -496,10 +497,13 @@ public class SSB {
   private static Consumer<BenchmarkBuilder.TransactionPhaseConfig> transactionPhaseConfig() {
     return transactionPhaseConfig ->
         transactionPhaseConfig.powerTest(
-            powerTestConfig ->
+            powerTestConfig -> {
+              for (int i = 0; i < 100; i++) {
                 powerTestConfig.specification(
                     "q1.1", "q1.2", "q1.3", "q2.1", "q2.2", "q2.3", "q3.1", "q3.2", "q3.3", "q3.4",
-                    "q4.1", "q4.2", "q4.3"));
+                    "q4.1", "q4.2", "q4.3");
+              }
+            });
   }
 
   private static Consumer<BenchmarkBuilder.LoadPhaseConfig> loadPhaseConfig(long scaleFactor) {
@@ -1124,12 +1128,12 @@ public class SSB {
                                     .collectionName("suppliers")
                                     .idDistribution(f -> f.uniform(scaleFactor * 2_000L))
                                     .existing()
-                                    .bufferSize(50)
+                                    .bufferSize(100)
                                     .executorService(Executors.newFixedThreadPool(1))))
             .referenceDistributionConfig(
                 referencesDistributionConfig ->
                     referencesDistributionConfig
-                        .constantNumber(1)
+                        .constantNumber(2)
                         .documentDistribution(
                             documentDistributionConfig ->
                                 documentDistributionConfig
@@ -1140,7 +1144,7 @@ public class SSB {
                                                 D_START_DATE.until(D_END_DATE, ChronoUnit.DAYS)))
                                     .existing()
                                     .executorService(Executors.newFixedThreadPool(1))
-                                    .bufferSize(50)));
+                                    .bufferSize(100)));
   }
 
   private static Consumer<BenchmarkBuilder.WriteSpecificationConfig> writeDatesConfig() {
@@ -1755,7 +1759,7 @@ public class SSB {
                                 revenue()))));
   }
 
-  private static Consumer<BenchmarkBuilder.WriteSpecificationConfig> writeLineOrdersEmbeddedConfig(
+  private static Consumer<BenchmarkBuilder.PrimaryWriteSpecificationConfig> writeLineOrdersEmbeddedConfig(
       long scaleFactor) {
     return writeConfig ->
         writeConfig
@@ -1840,12 +1844,12 @@ public class SSB {
                                     .collectionName("suppliers")
                                     .idDistribution(f -> f.uniform(scaleFactor * 2_000L))
                                     .existing()
-                                    .bufferSize(50)
+                                    .bufferSize(100)
                                     .executorService(Executors.newFixedThreadPool(1))))
             .referenceDistributionConfig(
                 referencesDistributionConfig ->
                     referencesDistributionConfig
-                        .constantNumber(1)
+                        .constantNumber(2)
                         .documentDistribution(
                             documentDistributionConfig ->
                                 documentDistributionConfig
@@ -1856,7 +1860,7 @@ public class SSB {
                                                 D_START_DATE.until(D_END_DATE, ChronoUnit.DAYS)))
                                     .existing()
                                     .executorService(Executors.newFixedThreadPool(1))
-                                    .bufferSize(50)));
+                                    .bufferSize(100)));
   }
 
   private static ObjectInserter nationAndPhoneInserter(RandomNumberGenerator random) {

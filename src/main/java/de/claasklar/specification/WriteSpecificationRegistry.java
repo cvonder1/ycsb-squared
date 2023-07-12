@@ -22,8 +22,4 @@ public class WriteSpecificationRegistry {
   public void register(WriteSpecification specification) {
     writeSpecificationMap.put(specification.getCollectionName(), specification);
   }
-
-  public Set<CollectionName> allCollectionNames() {
-    return writeSpecificationMap.keySet();
-  }
 }

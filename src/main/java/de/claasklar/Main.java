@@ -12,7 +12,7 @@ public class Main {
 
   public static void main(String[] args) throws InterruptedException {
 
-    var benchmark = SSB.createSSBDenormalized(1);
+    var benchmark = SSB.createSSBEmbedded(10);
     var span = benchmark.getApplicationSpan();
     try {
       benchmark.runAll();
