@@ -81,7 +81,7 @@ public class PrimaryWriteSpecificationRunnable implements Runnable {
           distributions.stream()
               .map(it -> it.mapSecond(ReferencesRunnable::getDocuments))
               .collect(new MapCollector<>());
-      var document = generator.generateDocument(id.toId(), references);
+      var document = generator.generateDocument(id, references);
       database.write(collectionName, document, span);
       idStore.store(collectionName, id);
       this.document = document;

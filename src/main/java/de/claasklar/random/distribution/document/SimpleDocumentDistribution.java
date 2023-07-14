@@ -4,10 +4,12 @@ import de.claasklar.database.Database;
 import de.claasklar.idStore.IdStore;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
+import de.claasklar.random.distribution.DistributionProperties;
 import de.claasklar.random.distribution.id.IdDistribution;
-import de.claasklar.specification.WriteSpecificationRegistry;
+import de.claasklar.specification.DocumentGenerationSpecificationRegistry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
+import java.util.List;
 
 public class SimpleDocumentDistribution implements DocumentDistribution {
 
@@ -15,7 +17,7 @@ public class SimpleDocumentDistribution implements DocumentDistribution {
   private final IdDistribution idDistribution;
   private final IdStore idStore;
   private final Database database;
-  private final WriteSpecificationRegistry registry;
+  private final DocumentGenerationSpecificationRegistry registry;
   private final Tracer tracer;
 
   public SimpleDocumentDistribution(
@@ -23,7 +25,7 @@ public class SimpleDocumentDistribution implements DocumentDistribution {
       IdDistribution idDistribution,
       IdStore idStore,
       Database database,
-      WriteSpecificationRegistry registry,
+      DocumentGenerationSpecificationRegistry registry,
       Tracer tracer) {
     this.collectionName = collectionName;
     this.idDistribution = idDistribution;
@@ -52,5 +54,11 @@ public class SimpleDocumentDistribution implements DocumentDistribution {
   @Override
   public CollectionName getCollectionName() {
     return collectionName;
+  }
+
+  @Override
+  public List<DistributionProperties> distributionProperties() {
+    return DistributionProperties.and(
+        List.of(DistributionProperties.REPEATABLE), idDistribution.distributionProperties());
   }
 }

@@ -4,11 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import de.claasklar.generation.ContextDocumentGeneratorBuilder;
 import de.claasklar.primitives.CollectionName;
-import de.claasklar.primitives.document.ArrayValue;
-import de.claasklar.primitives.document.ByteValue;
-import de.claasklar.primitives.document.DoubleValue;
-import de.claasklar.primitives.document.Id;
-import de.claasklar.primitives.document.OurDocument;
+import de.claasklar.primitives.document.*;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -32,8 +28,8 @@ public class ContextDocumentGeneratorTest {
     var documentId = randomId();
     var documents =
         new OurDocument[] {
-          new OurDocument(randomId(), Collections.emptyMap()),
-          new OurDocument(randomId(), Collections.emptyMap())
+          new OurDocument(randomId().toId(), Collections.emptyMap()),
+          new OurDocument(randomId().toId(), Collections.emptyMap())
         };
     // when
     var document =
@@ -42,7 +38,7 @@ public class ContextDocumentGeneratorTest {
     assertThat(document)
         .isEqualTo(
             new OurDocument(
-                documentId,
+                documentId.toId(),
                 Map.of(
                     "test_ids",
                     new ArrayValue(
@@ -64,9 +60,7 @@ public class ContextDocumentGeneratorTest {
     assertThat(document.getValues().get("constant")).isEqualTo(new DoubleValue(5));
   }
 
-  private Id randomId() {
-    var bytes = new byte[12];
-    new Random().nextBytes(bytes);
-    return new Id(bytes);
+  private IdLong randomId() {
+    return new IdLong(new Random().nextLong(0, Long.MAX_VALUE));
   }
 }

@@ -14,7 +14,7 @@ import io.opentelemetry.api.trace.Tracer;
 import java.time.Clock;
 import java.util.concurrent.ExecutorService;
 
-public final class WriteSpecification implements Specification {
+public final class WriteSpecification implements DocumentGenerationSpecification {
 
   private final CollectionName collectionName;
   private final DocumentGenerator generator;
@@ -54,7 +54,7 @@ public final class WriteSpecification implements Specification {
     this.clock = clock;
   }
 
-  public WriteSpecificationRunnable runnable(IdLong id, Span span) {
+  public DocumentGenerationSpecificationRunnable runnable(IdLong id, Span span) {
     return new WriteSpecificationRunnable(
         collectionName,
         id,

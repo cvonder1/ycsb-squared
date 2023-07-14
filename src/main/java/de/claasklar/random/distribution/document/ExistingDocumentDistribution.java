@@ -5,12 +5,15 @@ import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import de.claasklar.database.Database;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
+import de.claasklar.random.distribution.DistributionProperties;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
+import java.util.Collections;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -148,5 +151,10 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
   @Override
   public CollectionName getCollectionName() {
     return collectionName;
+  }
+
+  @Override
+  public List<DistributionProperties> distributionProperties() {
+    return Collections.emptyList();
   }
 }

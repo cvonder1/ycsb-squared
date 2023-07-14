@@ -1,6 +1,8 @@
 package de.claasklar.random.distribution.id;
 
 import de.claasklar.primitives.document.IdLong;
+import de.claasklar.random.distribution.DistributionProperties;
+import java.util.List;
 
 public interface IdDistribution {
   default IdLong next() {
@@ -8,4 +10,6 @@ public interface IdDistribution {
   }
 
   long nextAsLong();
+
+  List<DistributionProperties> distributionProperties();
 }

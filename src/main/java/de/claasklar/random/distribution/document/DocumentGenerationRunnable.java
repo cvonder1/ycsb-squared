@@ -6,8 +6,7 @@ import de.claasklar.primitives.document.OurDocument;
 import de.claasklar.specification.DocumentGenerationSpecificationRegistry;
 import io.opentelemetry.api.trace.Span;
 
-/** For new documents */
-public final class WriteDocumentRunnable implements DocumentRunnable {
+public final class DocumentGenerationRunnable implements DocumentRunnable {
 
   private final CollectionName collectionName;
   private final IdLong id;
@@ -17,7 +16,7 @@ public final class WriteDocumentRunnable implements DocumentRunnable {
   private OurDocument document;
   private boolean wasRun = false;
 
-  public WriteDocumentRunnable(
+  public DocumentGenerationRunnable(
       CollectionName collectionName,
       IdLong id,
       Span parentSpan,
@@ -54,19 +53,5 @@ public final class WriteDocumentRunnable implements DocumentRunnable {
   @Override
   public boolean wasRun() {
     return this.wasRun;
-  }
-
-  public CollectionName getCollectionName() {
-    if (!wasRun) {
-      throw new IllegalStateException("Cannot get collection name before Runnable was run");
-    }
-    return collectionName;
-  }
-
-  public IdLong getId() {
-    if (!wasRun) {
-      throw new IllegalStateException("Cannot get id before Runnable was run");
-    }
-    return id;
   }
 }

@@ -1,9 +1,11 @@
 package de.claasklar.random.distribution.reference;
 
 import de.claasklar.primitives.CollectionName;
+import de.claasklar.random.distribution.DistributionProperties;
 import de.claasklar.random.distribution.document.DocumentDistribution;
 import de.claasklar.random.distribution.document.DocumentRunnable;
 import io.opentelemetry.api.trace.Span;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 public class ConstantNumberReferencesDistribution implements ReferencesDistribution {
@@ -31,5 +33,11 @@ public class ConstantNumberReferencesDistribution implements ReferencesDistribut
   @Override
   public CollectionName getCollectionName() {
     return this.documentDistribution.getCollectionName();
+  }
+
+  @Override
+  public List<DistributionProperties> distributionProperties() {
+    return DistributionProperties.and(
+        List.of(DistributionProperties.REPEATABLE), documentDistribution.distributionProperties());
   }
 }

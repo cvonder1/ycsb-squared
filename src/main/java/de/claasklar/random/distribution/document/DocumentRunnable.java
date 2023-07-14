@@ -3,7 +3,7 @@ package de.claasklar.random.distribution.document;
 import de.claasklar.primitives.document.OurDocument;
 
 public sealed interface DocumentRunnable extends Runnable
-    permits ReadDocumentRunnable, WriteDocumentRunnable {
+    permits ReadDocumentRunnable, WriteDocumentRunnable, DocumentGenerationRunnable {
 
   /**
    * Returns document, previously obtained by running.

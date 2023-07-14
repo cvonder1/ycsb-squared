@@ -11,8 +11,7 @@ public class Main {
   private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
   public static void main(String[] args) throws InterruptedException {
-
-    var benchmark = SSB.createSSBEmbedded(10);
+    var benchmark = SSB.createSSBEmbedded(1);
     var span = benchmark.getApplicationSpan();
     try {
       benchmark.runAll();

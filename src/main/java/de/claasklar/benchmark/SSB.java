@@ -1147,7 +1147,8 @@ public class SSB {
                                     .bufferSize(100)));
   }
 
-  private static Consumer<BenchmarkBuilder.WriteSpecificationConfig> writeDatesConfig() {
+  private static Consumer<BenchmarkBuilder.DocumentGenerationSpecificationConfig>
+      writeDatesConfig() {
     return config ->
         config
             .collectionName("dates")
@@ -1203,7 +1204,8 @@ public class SSB {
                     .build());
   }
 
-  private static Consumer<BenchmarkBuilder.WriteSpecificationConfig> writePartsConfig() {
+  private static Consumer<BenchmarkBuilder.DocumentGenerationSpecificationConfig>
+      writePartsConfig() {
     return config ->
         config
             .collectionName("parts")
@@ -1232,7 +1234,8 @@ public class SSB {
                     .build());
   }
 
-  private static Consumer<BenchmarkBuilder.WriteSpecificationConfig> writeCustomersConfig() {
+  private static Consumer<BenchmarkBuilder.DocumentGenerationSpecificationConfig>
+      writeCustomersConfig() {
     return config ->
         config
             .collectionName("customers")
@@ -1255,7 +1258,8 @@ public class SSB {
                     .build());
   }
 
-  private static Consumer<BenchmarkBuilder.WriteSpecificationConfig> writeSuppliersConfig() {
+  private static Consumer<BenchmarkBuilder.DocumentGenerationSpecificationConfig>
+      writeSuppliersConfig() {
     return config ->
         config
             .collectionName("suppliers")
@@ -1759,8 +1763,8 @@ public class SSB {
                                 revenue()))));
   }
 
-  private static Consumer<BenchmarkBuilder.PrimaryWriteSpecificationConfig> writeLineOrdersEmbeddedConfig(
-      long scaleFactor) {
+  private static Consumer<BenchmarkBuilder.PrimaryWriteSpecificationConfig>
+      writeLineOrdersEmbeddedConfig(long scaleFactor) {
     return writeConfig ->
         writeConfig
             .collectionName("lineOrders")
@@ -1816,7 +1820,7 @@ public class SSB {
                                 documentDistributionConfig
                                     .collectionName("customers")
                                     .idDistribution(f -> f.uniform(scaleFactor * 30_000L))
-                                    .existing()))
+                                    .recomputable()))
             .referenceDistributionConfig(
                 referenceConfig ->
                     referenceConfig
@@ -1833,7 +1837,8 @@ public class SSB {
                                                         Math.floor(
                                                             1
                                                                 + (Math.log(scaleFactor)
-                                                                    / Math.log(2.0))))))))
+                                                                    / Math.log(2.0))))))
+                                    .recomputable()))
             .referenceDistributionConfig(
                 referencesDistributionConfig ->
                     referencesDistributionConfig
@@ -1843,9 +1848,7 @@ public class SSB {
                                 documentDistributionConfig
                                     .collectionName("suppliers")
                                     .idDistribution(f -> f.uniform(scaleFactor * 2_000L))
-                                    .existing()
-                                    .bufferSize(100)
-                                    .executorService(Executors.newFixedThreadPool(1))))
+                                    .recomputable()))
             .referenceDistributionConfig(
                 referencesDistributionConfig ->
                     referencesDistributionConfig
@@ -1858,9 +1861,7 @@ public class SSB {
                                         f ->
                                             f.uniform(
                                                 D_START_DATE.until(D_END_DATE, ChronoUnit.DAYS)))
-                                    .existing()
-                                    .executorService(Executors.newFixedThreadPool(1))
-                                    .bufferSize(100)));
+                                    .recomputable()));
   }
 
   private static ObjectInserter nationAndPhoneInserter(RandomNumberGenerator random) {

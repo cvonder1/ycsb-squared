@@ -15,6 +15,7 @@ import de.claasklar.phase.*;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.index.IndexConfiguration;
 import de.claasklar.random.distribution.StdRandomNumberGenerator;
+import de.claasklar.random.distribution.document.ComputeDocumentDistribution;
 import de.claasklar.random.distribution.document.DocumentDistribution;
 import de.claasklar.random.distribution.document.ExistingDocumentDistribution;
 import de.claasklar.random.distribution.document.SimpleDocumentDistribution;
@@ -52,8 +53,8 @@ public class BenchmarkBuilder {
   private final OpenTelemetry openTelemetry;
   private final Tracer tracer;
   private final LongHistogram transactionDurationHistogram;
-  private final WriteSpecificationRegistry registry;
-  private final List<WriteSpecificationConfig> writeSpecificationConfigs;
+  private final DocumentGenerationSpecificationRegistry registry;
+  private final List<DocumentGenerationSpecificationConfig> documentGenerationSpecificationConfigs;
   private final Map<String, PrimaryWriteSpecificationConfig> primaryWriteSpecificationConfigs;
   private final List<ReadSpecificationConfig> readSpecifications;
   private final List<IndexConfiguration> indexConfigurations;
@@ -85,8 +86,8 @@ public class BenchmarkBuilder {
             .setDescription(
                 "Tracks duration of transactions across all specifications. Attributes give more detail about collection and operation.")
             .build();
-    this.registry = new WriteSpecificationRegistry();
-    writeSpecificationConfigs = new LinkedList<>();
+    this.registry = new DocumentGenerationSpecificationRegistry();
+    documentGenerationSpecificationConfigs = new LinkedList<>();
     primaryWriteSpecificationConfigs = new HashMap<>();
     readSpecifications = new LinkedList<>();
     indexConfigurations = new LinkedList<>();
@@ -114,7 +115,8 @@ public class BenchmarkBuilder {
 
     var allCollections =
         Stream.concat(
-                writeSpecificationConfigs.stream().map(it -> it.collectionName),
+                documentGenerationSpecificationConfigs.stream()
+                    .map(DocumentGenerationSpecificationConfig::getCollectionName),
                 primaryWriteSpecificationConfigs.values().stream().map(it -> it.collectionName))
             .toList();
     database = databaseSupplier.apply(allCollections);
@@ -131,25 +133,54 @@ public class BenchmarkBuilder {
             applicationSpan,
             tracer);
 
-    for (var writeSpecificationConfig : writeSpecificationConfigs) {
-      var specification =
-          new WriteSpecification(
-              writeSpecificationConfig.collectionName,
-              writeSpecificationConfig.documentGenerator,
-              writeSpecificationConfig.referencesDistributionConfigs.stream()
-                  .map(
-                      it -> {
-                        var distribution = this.buildReferencesDistribution(it);
-                        executorServices.add(distribution.second());
-                        return distribution.first();
-                      })
-                  .toArray(ReferencesDistribution[]::new),
-              database,
-              idStore,
-              executorService,
-              transactionDurationHistogram,
-              tracer,
-              clock);
+    var allComputeDocumentDistributions = allComputeDocumentDistributions();
+    var intersection = allWriteDocumentDistributions();
+    intersection.retainAll(allComputeDocumentDistributions);
+    if (!intersection.isEmpty()) {
+      var violatingCollection = intersection.stream().findAny().get();
+      throw new IllegalArgumentException(
+          violatingCollection
+              + " is configured to be both stored in the database and recomputed. This is not possible");
+    }
+
+    for (var computeSpecificationConfig : documentGenerationSpecificationConfigs) {
+      DocumentGenerationSpecification specification;
+      if (allComputeDocumentDistributions.contains(
+          computeSpecificationConfig.getCollectionName())) {
+        specification =
+            new ComputeSpecification(
+                computeSpecificationConfig.getCollectionName(),
+                computeSpecificationConfig.getDocumentGenerator(),
+                computeSpecificationConfig.getReferencesDistributionConfigs().stream()
+                    .map(
+                        it -> {
+                          var distribution = this.buildReferencesDistribution(it);
+                          executorServices.add(distribution.second());
+                          return distribution.first();
+                        })
+                    .toArray(ReferencesDistribution[]::new),
+                executorService,
+                tracer);
+      } else {
+        specification =
+            new WriteSpecification(
+                computeSpecificationConfig.getCollectionName(),
+                computeSpecificationConfig.getDocumentGenerator(),
+                computeSpecificationConfig.getReferencesDistributionConfigs().stream()
+                    .map(
+                        it -> {
+                          var distribution = this.buildReferencesDistribution(it);
+                          executorServices.add(distribution.second());
+                          return distribution.first();
+                        })
+                    .toArray(ReferencesDistribution[]::new),
+                database,
+                idStore,
+                executorService,
+                transactionDurationHistogram,
+                tracer,
+                clock);
+      }
       registry.register(specification);
     }
 
@@ -210,6 +241,30 @@ public class BenchmarkBuilder {
         applicationSpan);
   }
 
+  private Set<@NotNull CollectionName> allWriteDocumentDistributions() {
+    return Stream.concat(
+            primaryWriteSpecificationConfigs.values().stream()
+                .flatMap(it -> it.referencesDistributionConfigs.stream()),
+            documentGenerationSpecificationConfigs.stream()
+                .flatMap(it -> it.referencesDistributionConfigs.stream()))
+        .map(it -> it.documentDistributionConfig)
+        .filter(it -> it.recomputableDocumentDistributionConfig == null)
+        .map(it -> it.collectionName)
+        .collect(Collectors.toSet());
+  }
+
+  private Set<@NotNull CollectionName> allComputeDocumentDistributions() {
+    return Stream.concat(
+            primaryWriteSpecificationConfigs.values().stream()
+                .flatMap(it -> it.referencesDistributionConfigs.stream()),
+            documentGenerationSpecificationConfigs.stream()
+                .flatMap(it -> it.referencesDistributionConfigs.stream()))
+        .map(it -> it.documentDistributionConfig)
+        .filter(it -> it.recomputableDocumentDistributionConfig != null)
+        .map(it -> it.collectionName)
+        .collect(Collectors.toSet());
+  }
+
   private Pair<ReferencesDistribution, ExecutorService> buildReferencesDistribution(
       ReferencesDistributionConfig config) {
     var documentDistribution = buildDocumentDistribution(config.documentDistributionConfig);
@@ -221,10 +276,10 @@ public class BenchmarkBuilder {
 
   private Pair<DocumentDistribution, ExecutorService> buildDocumentDistribution(
       DocumentDistributionConfig config) {
-    var simpleDocumentDistribution =
-        new SimpleDocumentDistribution(
-            config.collectionName, config.idDistribution, idStore, database, registry, tracer);
     if (config.existingDocumentDistributionConfig != null) {
+      var simpleDocumentDistribution =
+          new SimpleDocumentDistribution(
+              config.collectionName, config.idDistribution, idStore, database, registry, tracer);
       ExecutorService existingExecutorService =
           config.existingDocumentDistributionConfig.executorService;
       if (existingExecutorService == null) {
@@ -238,8 +293,15 @@ public class BenchmarkBuilder {
               existingExecutorService,
               tracer),
           existingExecutorService);
+    } else if (config.recomputableDocumentDistributionConfig != null) {
+      return new Pair<>(
+          new ComputeDocumentDistribution(config.collectionName, config.idDistribution, registry),
+          null);
     }
-    return new Pair<>(simpleDocumentDistribution, null);
+    return new Pair<>(
+        new SimpleDocumentDistribution(
+            config.collectionName, config.idDistribution, idStore, database, registry, tracer),
+        null);
   }
 
   private TransactionPhase buildTransactionPhase(Map<String, TopSpecification> topSpecifications) {
@@ -365,10 +427,11 @@ public class BenchmarkBuilder {
     }
   }
 
-  public BenchmarkBuilder writeSpecification(Consumer<WriteSpecificationConfig> configConsumer) {
-    var config = new WriteSpecificationConfig();
+  public BenchmarkBuilder writeSpecification(
+      Consumer<DocumentGenerationSpecificationConfig> configConsumer) {
+    var config = new DocumentGenerationSpecificationConfig();
     configConsumer.accept(config);
-    writeSpecificationConfigs.add(config);
+    documentGenerationSpecificationConfigs.add(config);
     return this;
   }
 
@@ -380,32 +443,44 @@ public class BenchmarkBuilder {
     return this;
   }
 
-  public static class WriteSpecificationConfig {
-
+  public static class DocumentGenerationSpecificationConfig {
     @NotNull private CollectionName collectionName;
     @NotNull private DocumentGenerator documentGenerator;
     private List<ReferencesDistributionConfig> referencesDistributionConfigs;
 
-    private WriteSpecificationConfig() {
+    private DocumentGenerationSpecificationConfig() {
       referencesDistributionConfigs = new LinkedList<>();
     }
 
-    public WriteSpecificationConfig collectionName(String collectionName) {
+    public DocumentGenerationSpecificationConfig collectionName(String collectionName) {
       this.collectionName = new CollectionName(collectionName);
       return this;
     }
 
-    public WriteSpecificationConfig documentGenerator(DocumentGenerator documentGenerator) {
+    public DocumentGenerationSpecificationConfig documentGenerator(
+        DocumentGenerator documentGenerator) {
       this.documentGenerator = documentGenerator;
       return this;
     }
 
-    public WriteSpecificationConfig referenceDistributionConfig(
+    public DocumentGenerationSpecificationConfig referenceDistributionConfig(
         Consumer<ReferencesDistributionConfig> configConsumer) {
       var config = new ReferencesDistributionConfig();
       configConsumer.accept(config);
       this.referencesDistributionConfigs.add(config);
       return this;
+    }
+
+    public CollectionName getCollectionName() {
+      return collectionName;
+    }
+
+    public DocumentGenerator getDocumentGenerator() {
+      return documentGenerator;
+    }
+
+    public List<ReferencesDistributionConfig> getReferencesDistributionConfigs() {
+      return referencesDistributionConfigs;
     }
   }
 
@@ -462,8 +537,10 @@ public class BenchmarkBuilder {
   public static class DocumentDistributionConfig {
     @NotNull private CollectionName collectionName;
     @NotNull private IdDistribution idDistribution;
+    private boolean recomputable = false;
 
     private ExistingDocumentDistributionConfig existingDocumentDistributionConfig;
+    private RecomputableDocumentDistributionConfig recomputableDocumentDistributionConfig;
 
     private DocumentDistributionConfig() {}
 
@@ -479,8 +556,15 @@ public class BenchmarkBuilder {
     }
 
     public ExistingDocumentDistributionConfig existing() {
+      recomputableDocumentDistributionConfig = null;
       existingDocumentDistributionConfig = new ExistingDocumentDistributionConfig();
       return existingDocumentDistributionConfig;
+    }
+
+    public RecomputableDocumentDistributionConfig recomputable() {
+      existingDocumentDistributionConfig = null;
+      recomputableDocumentDistributionConfig = new RecomputableDocumentDistributionConfig();
+      return recomputableDocumentDistributionConfig;
     }
   }
 
@@ -500,6 +584,8 @@ public class BenchmarkBuilder {
       return this;
     }
   }
+
+  public static class RecomputableDocumentDistributionConfig {}
 
   public BenchmarkBuilder readSpecification(Consumer<ReadSpecificationConfig> configConsumer) {
     var config = new ReadSpecificationConfig();
