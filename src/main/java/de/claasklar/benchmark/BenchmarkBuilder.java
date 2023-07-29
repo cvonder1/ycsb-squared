@@ -9,11 +9,14 @@ import de.claasklar.database.mongodb.MongoDatabaseBuilder;
 import de.claasklar.generation.ContextDocumentGenerator;
 import de.claasklar.generation.DocumentGenerator;
 import de.claasklar.generation.QueryGenerator;
+import de.claasklar.generation.suppliers.VariableSuppliers;
 import de.claasklar.idStore.IdStore;
 import de.claasklar.idStore.InMemoryIdStore;
 import de.claasklar.phase.*;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.index.IndexConfiguration;
+import de.claasklar.random.distribution.Distribution;
+import de.claasklar.random.distribution.LongDistributionFactory;
 import de.claasklar.random.distribution.StdRandomNumberGenerator;
 import de.claasklar.random.distribution.document.ComputeDocumentDistribution;
 import de.claasklar.random.distribution.document.DocumentDistribution;
@@ -21,7 +24,7 @@ import de.claasklar.random.distribution.document.ExistingDocumentDistribution;
 import de.claasklar.random.distribution.document.SimpleDocumentDistribution;
 import de.claasklar.random.distribution.id.IdDistribution;
 import de.claasklar.random.distribution.id.IdDistributionFactory;
-import de.claasklar.random.distribution.reference.ConstantNumberReferencesDistribution;
+import de.claasklar.random.distribution.reference.DecoratorReferencesDistribution;
 import de.claasklar.random.distribution.reference.ReferencesDistribution;
 import de.claasklar.specification.*;
 import de.claasklar.util.Pair;
@@ -35,12 +38,14 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.time.Clock;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -191,6 +196,7 @@ public class BenchmarkBuilder {
       var specification =
           new PrimaryWriteSpecification(
               primaryConfig.collectionName,
+              primaryConfig.idShift,
               primaryConfig.referencesDistributionConfigs.stream()
                   .map(
                       it -> {
@@ -210,11 +216,13 @@ public class BenchmarkBuilder {
       primaryWriteSpecificaitons.put(primaryConfigEntry.getKey(), specification);
     }
 
+    var variableSuppliers = new VariableSuppliers(idStore);
     for (var readSpecificationConfig : readSpecifications) {
       var specification =
           new ReadSpecification(
               readSpecificationConfig.name,
-              readSpecificationConfig.queryGenerator,
+              readSpecificationConfig.queryGeneratorFunction.apply(
+                  variableSuppliers, new IdDistributionFactory()),
               database,
               transactionDurationHistogram,
               tracer,
@@ -224,8 +232,9 @@ public class BenchmarkBuilder {
 
     var loadPhase =
         new LoadPhase(
-            primaryWriteSpecificaitons.get(loadPhaseConfig.primaryWriteSpecificationName),
-            loadPhaseConfig.targetCount,
+            loadPhaseConfig.primaryWriteSpecifications.stream()
+                .map(it -> new Pair<>(it.first(), primaryWriteSpecificaitons.get(it.second())))
+                .collect(Collectors.toList()),
             loadPhaseConfig.numThreads,
             applicationSpan,
             tracer);
@@ -269,8 +278,8 @@ public class BenchmarkBuilder {
       ReferencesDistributionConfig config) {
     var documentDistribution = buildDocumentDistribution(config.documentDistributionConfig);
     return new Pair<>(
-        new ConstantNumberReferencesDistribution(
-            config.constantNumber, documentDistribution.first(), executorService),
+        new DecoratorReferencesDistribution(
+            config.countDistribution, documentDistribution.first(), executorService),
         documentDistribution.second());
   }
 
@@ -488,6 +497,7 @@ public class BenchmarkBuilder {
     @NotNull private CollectionName collectionName;
     @NotNull private ContextDocumentGenerator documentGenerator;
     private List<ReferencesDistributionConfig> referencesDistributionConfigs;
+    @Positive private long idShift = 0;
 
     private PrimaryWriteSpecificationConfig() {
       referencesDistributionConfigs = new LinkedList<>();
@@ -511,11 +521,16 @@ public class BenchmarkBuilder {
       this.referencesDistributionConfigs.add(config);
       return this;
     }
+
+    public PrimaryWriteSpecificationConfig idShift(long idShift) {
+      this.idShift = idShift;
+      return this;
+    }
   }
 
   public static class ReferencesDistributionConfig {
-    @NotNull @Min(1)
-    private Integer constantNumber = 1;
+
+    @NotNull private Distribution<Long> countDistribution;
 
     private final DocumentDistributionConfig documentDistributionConfig =
         new DocumentDistributionConfig();
@@ -523,13 +538,19 @@ public class BenchmarkBuilder {
     private ReferencesDistributionConfig() {}
 
     public ReferencesDistributionConfig constantNumber(int constantNumber) {
-      this.constantNumber = constantNumber;
+      this.countDistribution = new LongDistributionFactory().constant(constantNumber);
       return this;
     }
 
     public ReferencesDistributionConfig documentDistribution(
         Consumer<DocumentDistributionConfig> configConsumer) {
       configConsumer.accept(documentDistributionConfig);
+      return this;
+    }
+
+    public ReferencesDistributionConfig countDistribution(
+        Function<LongDistributionFactory, Distribution<Long>> countDistributionFactory) {
+      this.countDistribution = countDistributionFactory.apply(new LongDistributionFactory());
       return this;
     }
   }
@@ -596,7 +617,9 @@ public class BenchmarkBuilder {
 
   public static class ReadSpecificationConfig {
     @NotNull private String name;
-    @NotNull private QueryGenerator queryGenerator;
+
+    @NotNull private BiFunction<VariableSuppliers, IdDistributionFactory, QueryGenerator>
+        queryGeneratorFunction;
 
     public ReadSpecificationConfig name(String name) {
       this.name = name;
@@ -604,7 +627,13 @@ public class BenchmarkBuilder {
     }
 
     public ReadSpecificationConfig queryGenerator(QueryGenerator queryGenerator) {
-      this.queryGenerator = queryGenerator;
+      this.queryGeneratorFunction = (v, i) -> queryGenerator;
+      return this;
+    }
+
+    public ReadSpecificationConfig queryGenerator(
+        BiFunction<VariableSuppliers, IdDistributionFactory, QueryGenerator> config) {
+      queryGeneratorFunction = config;
       return this;
     }
   }
@@ -621,19 +650,15 @@ public class BenchmarkBuilder {
   }
 
   public static class LoadPhaseConfig {
-    @NotNull private String primaryWriteSpecificationName;
-    @NotNull private Long targetCount;
+    @NotEmpty
+    private final List<Pair<Long, String>> primaryWriteSpecifications = new LinkedList<>();
 
     @Min(1)
     private int numThreads = 10;
 
-    public LoadPhaseConfig primaryWriteSpecificationName(String name) {
-      this.primaryWriteSpecificationName = name;
-      return this;
-    }
-
-    public LoadPhaseConfig targetCount(long targetCount) {
-      this.targetCount = targetCount;
+    public LoadPhaseConfig primaryWriteSpecification(
+        long targetCount, String primaryWriteSpecificationName) {
+      primaryWriteSpecifications.add(new Pair<>(targetCount, primaryWriteSpecificationName));
       return this;
     }
 
@@ -692,9 +717,11 @@ public class BenchmarkBuilder {
     @NotNull @Positive private Long totalCount;
     @NotNull @Positive private Integer threadCount;
     @NotNull @Positive private Integer targetOps;
-    private List<Pair<@Positive Double, String>> weightedSpecifications;
+    private final List<Pair<@Positive Double, String>> weightedSpecifications;
 
-    private WeightedRandomTransactionPhaseConfig() {}
+    private WeightedRandomTransactionPhaseConfig() {
+      weightedSpecifications = new LinkedList<>();
+    }
 
     public WeightedRandomTransactionPhaseConfig totalCount(long totalCount) {
       this.totalCount = totalCount;

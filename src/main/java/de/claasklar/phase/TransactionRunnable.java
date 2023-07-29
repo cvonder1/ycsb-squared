@@ -51,9 +51,10 @@ class TransactionRunnable implements Runnable {
     this.opDurationNs = (long) (1_000_000 / targetOpsPerMs);
     var sumWeight =
         weightedSpecifications.stream().map(Pair::first).reduce(Double::sum).orElse(1.0);
-    if ((sumWeight - 1.0) > 0.0001) {
-      throw new IllegalArgumentException("weights do not add up to 1");
-    }
+    weightedSpecifications =
+        weightedSpecifications.stream()
+            .map(it -> it.mapFirst(weight -> weight / sumWeight))
+            .toList();
     AtomicReference<Double> acc = new AtomicReference<>(0.0);
     this.weightedSpecifications =
         weightedSpecifications.stream()

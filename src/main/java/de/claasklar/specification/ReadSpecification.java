@@ -45,4 +45,9 @@ public final class ReadSpecification implements TopSpecification {
     return new ReadSpecificationRunnable(
         queryGenerator, name, database, attributes, tracer, clock, histogram);
   }
+
+  @Override
+  public String getName() {
+    return name;
+  }
 }

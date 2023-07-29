@@ -509,8 +509,7 @@ public class SSB {
   private static Consumer<BenchmarkBuilder.LoadPhaseConfig> loadPhaseConfig(long scaleFactor) {
     return loadPhaseConfig ->
         loadPhaseConfig
-            .primaryWriteSpecificationName("write_lineOrders")
-            .targetCount(scaleFactor * 6_000_000L)
+            .primaryWriteSpecification(scaleFactor * 6_000_000L, "write_lineOrders")
             .numThreads(100);
   }
 

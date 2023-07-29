@@ -98,7 +98,12 @@ public class Pipes {
             .forEach(it -> value.put(it.getKey(), toValue(it.getValue())));
         return value;
       } else if (o instanceof byte[]) {
-        return new ByteValue((byte[]) o);
+        var value = (byte[]) o;
+        if (value.length == 12) {
+          return new Id(value);
+        } else {
+          return new ByteValue(value);
+        }
       } else if (o instanceof String) {
         return new StringValue((String) o);
       } else if (o instanceof Float || o instanceof Double) {

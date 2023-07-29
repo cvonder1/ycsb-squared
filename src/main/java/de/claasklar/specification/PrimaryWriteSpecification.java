@@ -31,6 +31,7 @@ public final class PrimaryWriteSpecification implements TopSpecification {
 
   public PrimaryWriteSpecification(
       CollectionName collectionName,
+      long idShift,
       ReferencesDistribution[] referencesDistributions,
       ContextDocumentGenerator generator,
       Database database,
@@ -51,7 +52,7 @@ public final class PrimaryWriteSpecification implements TopSpecification {
             stringKey("collection"), collectionName.toString(), stringKey("operation"), "WRITE");
     this.tracer = tracer;
     this.clock = clock;
-    this.currentId = new AtomicLong(1);
+    this.currentId = new AtomicLong(idShift + 1);
   }
 
   @Override
@@ -68,5 +69,13 @@ public final class PrimaryWriteSpecification implements TopSpecification {
         idStore,
         tracer,
         clock);
+  }
+
+  public CollectionName getCollectionName() {
+    return this.collectionName;
+  }
+
+  public String getName() {
+    return this.collectionName.toString();
   }
 }

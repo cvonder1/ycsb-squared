@@ -36,4 +36,9 @@ public class EnumeratedDistribution<T> implements Distribution<T> {
       ;
     return (T) values[i];
   }
+
+  @Override
+  public List<DistributionProperties> distributionProperties() {
+    return List.of(DistributionProperties.REPEATABLE);
+  }
 }
