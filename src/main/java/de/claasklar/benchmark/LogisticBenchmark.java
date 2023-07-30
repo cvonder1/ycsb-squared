@@ -23,14 +23,17 @@ public class LogisticBenchmark {
 
   private static final int WAREHOUSE_NUM = 50;
   private static final int STOCK_ITEM_NUM = 4_000_000;
-    private static final int STOCK_ITEM_NUM_UNORDERED = 1_000_000;
-    private static final int STOCK_ITEM_NUM_ORDERED = STOCK_ITEM_NUM - STOCK_ITEM_NUM_UNORDERED;
-    // 10000 orders per day
-  // simulate 2 years worth of orders =>
-    private static final int ORDERS_NUM = 7_300_000;
-    private static final int CUSTOMER_NUM = 730_000;
-    private static final int PRODUCT_NUM = 100_000;
-    private static final double LOAD_PROPORTION = 1 - (10_000.0 / CUSTOMER_NUM);
+  private static final int STOCK_ITEM_NUM_UNORDERED = 1_000_000;
+  private static final int STOCK_ITEM_NUM_ORDERED = STOCK_ITEM_NUM - STOCK_ITEM_NUM_UNORDERED;
+  // 20000 orders per day
+  // simulate 1 year worth of orders =>
+  private static final int ORDERS_NUM = 7_300_000;
+  private static final int CUSTOMER_NUM = 730_000;
+  private static final int CUSTOMER_NUM_TRANSACTION = 500;
+  private static final int PRODUCT_NUM = 100_000;
+  private static final double LOAD_PROPORTION =
+      1 - ((double) CUSTOMER_NUM_TRANSACTION / CUSTOMER_NUM);
+  private static final double SIMULATED_WORKLOAD_DURATION_HOURS = 6;
 
   private RandomNumberGenerator random = new StdRandomNumberGenerator();
 
@@ -400,7 +403,8 @@ public class LogisticBenchmark {
         .loadPhase(
             loadPhaseConfig ->
                 loadPhaseConfig
-                    .primaryWriteSpecification((long) (CUSTOMER_NUM * LOAD_PROPORTION), "write_customer")
+                    .primaryWriteSpecification(
+                        (long) (CUSTOMER_NUM * LOAD_PROPORTION), "write_customer")
                     .primaryWriteSpecification(
                         (long) (STOCK_ITEM_NUM_UNORDERED * LOAD_PROPORTION), "primary_stock_items")
                     .numThreads(30))
@@ -409,23 +413,30 @@ public class LogisticBenchmark {
             config ->
                 config.weightedRandom(
                     weightedRandom -> {
-                      var customerWeight = 50;
-                      double totalCount =
-                          (1000.0 / customerWeight) * (CUSTOMER_NUM - (CUSTOMER_NUM * LOAD_PROPORTION));
+                      var customerWeight = 10;
+                      double totalCount = (2000.0 / customerWeight) * CUSTOMER_NUM_TRANSACTION;
                       var stockItemsWeight =
-                          1000
-                              * (STOCK_ITEM_NUM_UNORDERED - STOCK_ITEM_NUM_UNORDERED * LOAD_PROPORTION)
+                          2000
+                              * (STOCK_ITEM_NUM_UNORDERED
+                                  - STOCK_ITEM_NUM_UNORDERED * LOAD_PROPORTION)
                               / totalCount;
-                      var productAvailabilityWeight = 599 + 100 - customerWeight - stockItemsWeight;
+                      var productAvailabilityWeight =
+                          1199 + 100 - customerWeight - stockItemsWeight;
+                      var targetOpsPerMilli =
+                          totalCount
+                              * (1 / SIMULATED_WORKLOAD_DURATION_HOURS)
+                              * (1 / 60.0) // hours
+                              * (1 / 60.0) // minutes
+                              * (1 / 1000.0); // milliseconds
                       weightedRandom
                           .weightedSpecification(stockItemsWeight, "primary_stock_items")
-                          .weightedSpecification(50, "write_customer")
+                          .weightedSpecification(customerWeight, "write_customer")
                           .weightedSpecification(1, "warehouse_revenue")
                           .weightedSpecification(productAvailabilityWeight, "product_availability")
-                          .weightedSpecification(100, "find_one_customer")
-                          .weightedSpecification(200, "find_warehouses_for_order")
+                          .weightedSpecification(350, "find_one_customer")
+                          .weightedSpecification(350, "find_warehouses_for_order")
                           .totalCount((int) totalCount)
-                          .targetOps(1)
+                          .targetOps(targetOpsPerMilli)
                           .threadCount(50);
                     }))
         .build();

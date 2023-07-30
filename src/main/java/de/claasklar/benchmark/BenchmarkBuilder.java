@@ -716,7 +716,7 @@ public class BenchmarkBuilder {
   public static class WeightedRandomTransactionPhaseConfig {
     @NotNull @Positive private Long totalCount;
     @NotNull @Positive private Integer threadCount;
-    @NotNull @Positive private Integer targetOps;
+    @NotNull @Positive private Double targetOps;
     private final List<Pair<@Positive Double, String>> weightedSpecifications;
 
     private WeightedRandomTransactionPhaseConfig() {
@@ -733,7 +733,7 @@ public class BenchmarkBuilder {
       return this;
     }
 
-    public WeightedRandomTransactionPhaseConfig targetOps(int targetOps) {
+    public WeightedRandomTransactionPhaseConfig targetOps(double targetOps) {
       this.targetOps = targetOps;
       return this;
     }

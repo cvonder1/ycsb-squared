@@ -7,10 +7,12 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,14 +61,9 @@ class TransactionRunnable implements Runnable {
     this.weightedSpecifications =
         weightedSpecifications.stream()
             .sorted(Comparator.comparing(Pair::first))
-            .map(
-                it ->
-                    it.mapFirst(
-                        weight -> {
-                          acc.updateAndGet(v -> v + weight);
-                          return acc.get();
-                        }))
-            .toList();
+            .map(it -> it.mapFirst(weight -> acc.getAndUpdate(v -> v + weight)))
+            .collect(Collectors.toList());
+    Collections.reverse(this.weightedSpecifications);
     this.random = random;
     this.span = span;
     this.tracer = tracer;
@@ -104,7 +101,7 @@ class TransactionRunnable implements Runnable {
   private TopSpecification selectOneSpecification() {
     var randomSelection = random.nextDouble(0, 1);
     for (var spec : weightedSpecifications) {
-      if (spec.first() < randomSelection) {
+      if (spec.first() <= randomSelection) {
         return spec.second();
       }
     }
