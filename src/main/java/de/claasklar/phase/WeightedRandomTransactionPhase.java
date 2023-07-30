@@ -18,16 +18,25 @@ public class WeightedRandomTransactionPhase implements TransactionPhase {
 
   private final long totalCount;
   private final int threadCount;
-  private final int targetOps;
+  private final double targetOps;
   private final List<Pair<Double, TopSpecification>> weightedSpecifications;
   private final RandomNumberGenerator random;
   private final Span applicationSpan;
   private final Tracer tracer;
 
+  /**
+   * @param totalCount total count of executions
+   * @param threadCount number of parallel threads
+   * @param targetOps targeted operations per millisecond
+   * @param weightedSpecifications weighted list of specifications
+   * @param random RandomNumberGenerator
+   * @param applicationSpan Śpan, that runs for the duration of the application
+   * @param tracer Tracer
+   */
   public WeightedRandomTransactionPhase(
       long totalCount,
       int threadCount,
-      int targetOps,
+      double targetOps,
       List<Pair<Double, TopSpecification>> weightedSpecifications,
       RandomNumberGenerator random,
       Span applicationSpan,
@@ -64,7 +73,7 @@ public class WeightedRandomTransactionPhase implements TransactionPhase {
             new Thread(
                 new TransactionRunnable(
                     totalCount / threadCount,
-                    (double) targetOps / (double) threadCount,
+                    targetOps / threadCount,
                     weightedSpecifications,
                     random,
                     transactionSpan,
