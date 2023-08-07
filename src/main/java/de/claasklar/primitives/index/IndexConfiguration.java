@@ -73,6 +73,531 @@ public class IndexConfiguration {
     this.hidden = hidden;
   }
 
+  public static IndexConfiguration of(CollectionName collectionName) {
+    return new IndexConfiguration(
+        collectionName,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
+  }
+
+  public IndexConfiguration keys(NestedObjectValue keys) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration background(boolean background) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration unique(boolean unique) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration name(String name) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration sparse(boolean sparse) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration duration(Duration expireAfterDuration) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration version(int version) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration weights(NestedObjectValue weights) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration defaultLanguage(String defaultLanguage) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration languageOverride(String languageOverride) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration textVersion(int textVersion) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration sphereVersion(int sphereVersion) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration bits(int bits) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration min(double min) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration max(double max) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration storageEngine(NestedObjectValue storageEngine) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration partialFilterExpression(NestedObjectValue partialFilterExpression) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration collation(Collation collation) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration wildcardProjection(NestedObjectValue wildcardProjection) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
+  public IndexConfiguration hidden(boolean hidden) {
+    return new IndexConfiguration(
+        collectionName,
+        keys,
+        background,
+        unique,
+        name,
+        sparse,
+        expireAfterDuration,
+        version,
+        weights,
+        defaultLanguage,
+        languageOverride,
+        textVersion,
+        sphereVersion,
+        bits,
+        min,
+        max,
+        storageEngine,
+        partialFilterExpression,
+        collation,
+        wildcardProjection,
+        hidden);
+  }
+
   public CollectionName getCollectionName() {
     return collectionName;
   }

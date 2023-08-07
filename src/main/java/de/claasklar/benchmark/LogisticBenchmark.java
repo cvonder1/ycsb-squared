@@ -11,6 +11,7 @@ import de.claasklar.generation.SameAggregationGenerator;
 import de.claasklar.generation.VariableAggregationGenerator;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.StringValue;
+import de.claasklar.primitives.index.IndexConfiguration;
 import de.claasklar.primitives.query.AggregationOptions;
 import de.claasklar.random.distribution.RandomNumberGenerator;
 import de.claasklar.random.distribution.StdRandomNumberGenerator;
@@ -409,6 +410,12 @@ public class LogisticBenchmark {
                         (long) (STOCK_ITEM_NUM_UNORDERED * LOAD_PROPORTION), "primary_stock_items")
                     .numThreads(30))
         .database(config -> {})
+        .indexConfiguration(
+            IndexConfiguration.of(new CollectionName("orders"))
+                .keys(object("stock_item_ids", integer(1))))
+        .indexConfiguration(
+            IndexConfiguration.of(new CollectionName("stock_items"))
+                .keys(object("product_id", integer(1))))
         .transactionPhase(
             config ->
                 config.weightedRandom(
