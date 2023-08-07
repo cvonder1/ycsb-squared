@@ -76,8 +76,14 @@ public class TelemetryConfig {
     for (int i = 1; i < 39; i++) {
       bucketBoundaries.add(i * 500d + 1000);
     }
+    // 25s - 20m
     for (int i = 1; i < 237; i++) {
       bucketBoundaries.add(i * 5000d + 20000);
+    }
+    // 0.5h - 4h
+    for (int i = 0; i < 8; i++) {
+      // every 30min
+      bucketBoundaries.add(i * 1800000d + 1800000d);
     }
     return bucketBoundaries;
   }

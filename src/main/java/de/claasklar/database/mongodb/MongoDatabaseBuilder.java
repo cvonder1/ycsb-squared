@@ -13,6 +13,7 @@ import de.claasklar.util.Pair;
 import de.claasklar.util.TelemetryConfig;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.extension.incubator.metrics.ExtendedLongHistogramBuilder;
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.List;
@@ -142,12 +143,15 @@ public class MongoDatabaseBuilder {
             .collect(new MapCollector<>());
 
     var histogram =
-        openTelemetry
-            .meterBuilder(TelemetryConfig.METRIC_SCOPE_NAME)
-            .setInstrumentationVersion(TelemetryConfig.version())
-            .build()
-            .histogramBuilder("database_duration")
-            .ofLongs()
+        ((ExtendedLongHistogramBuilder)
+                openTelemetry
+                    .meterBuilder(TelemetryConfig.METRIC_SCOPE_NAME)
+                    .setInstrumentationVersion(TelemetryConfig.version())
+                    .build()
+                    .histogramBuilder("database_duration")
+                    .ofLongs())
+            .setAdvice(
+                advice -> advice.setExplicitBucketBoundaries(TelemetryConfig.bucketBoundaries()))
             .setUnit("ms")
             .setDescription("Tracks duration of all database operations.")
             .build();
