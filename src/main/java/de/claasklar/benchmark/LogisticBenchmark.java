@@ -193,11 +193,11 @@ public class LogisticBenchmark {
                         ContextDocumentGeneratorBuilder.builder()
                             .field("name", s -> s.ssbRandomLengthString(10, 30))
                             .fieldFromPipe(
-                                "order_id",
+                                "order_ids",
                                 f ->
                                     f.selectCollection(
                                         new CollectionName("orders"),
-                                        p -> p.selectByPath("$.[0]._id").toId()))
+                                        p -> p.selectByPath("$.[*]._id").toArray()))
                             .build())
                     .referenceDistributionConfig(
                         referencesDistributionConfig ->
@@ -234,7 +234,7 @@ public class LogisticBenchmark {
                                                 object(
                                                     Map.of(
                                                         "from", string("orders"),
-                                                        "localField", string("order_id"),
+                                                        "localField", string("order_ids"),
                                                         "foreignField", string("_id"),
                                                         "as", string("orders")))))),
                                 v.existingId(
@@ -357,8 +357,8 @@ public class LogisticBenchmark {
                     .name("warehouse_revenue")
                     .queryGenerator(
                         new SameAggregationGenerator(
-                            new CollectionName("stock_items"),
-                            AggregationOptions.aggregate("stock_items")
+                            new CollectionName("orders"),
+                            AggregationOptions.aggregate("orders")
                                 .pipeline(
                                     List.of(
                                         object(
