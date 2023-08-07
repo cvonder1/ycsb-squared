@@ -25,18 +25,22 @@ public class LogisticBenchmark {
   private static final int WAREHOUSE_NUM = 50;
   private static final int STOCK_ITEM_NUM = 4_000_000;
   private static final int STOCK_ITEM_NUM_UNORDERED = 1_000_000;
-  private static final int STOCK_ITEM_NUM_ORDERED = STOCK_ITEM_NUM - STOCK_ITEM_NUM_UNORDERED;
+
+  // number of new unordered stock items during 6h
+  private static final int STOCK_ITEM_NUM_UNORDERED_TRANSACTION = 685;
   // 20000 orders per day
-  // simulate 1 year worth of orders =>
+  // simulate 1 year worth of orders
   private static final int ORDERS_NUM = 7_300_000;
   private static final int CUSTOMER_NUM = 730_000;
+
+  // assumption: 20000 orders/day
+  // transaction phase runs for 6h -> 5000 orders need to be created
+  // 10 orders per customer -> 500 customers need to be created during the transaction phase
   private static final int CUSTOMER_NUM_TRANSACTION = 500;
   private static final int PRODUCT_NUM = 100_000;
-  private static final double LOAD_PROPORTION =
-      1 - ((double) CUSTOMER_NUM_TRANSACTION / CUSTOMER_NUM);
   private static final double SIMULATED_WORKLOAD_DURATION_HOURS = 6;
 
-  private RandomNumberGenerator random = new StdRandomNumberGenerator();
+  private final RandomNumberGenerator random = new StdRandomNumberGenerator();
 
   public Benchmark createLogisticBenchmark() {
     return BenchmarkBuilder.builder()
@@ -405,9 +409,10 @@ public class LogisticBenchmark {
             loadPhaseConfig ->
                 loadPhaseConfig
                     .primaryWriteSpecification(
-                        (long) (CUSTOMER_NUM * LOAD_PROPORTION), "write_customer")
+                        (long) CUSTOMER_NUM - CUSTOMER_NUM_TRANSACTION, "write_customer")
                     .primaryWriteSpecification(
-                        (long) (STOCK_ITEM_NUM_UNORDERED * LOAD_PROPORTION), "primary_stock_items")
+                        (long) STOCK_ITEM_NUM_UNORDERED - STOCK_ITEM_NUM_UNORDERED_TRANSACTION,
+                        "primary_stock_items")
                     .numThreads(30))
         .database(config -> {})
         .indexConfiguration(
@@ -421,14 +426,9 @@ public class LogisticBenchmark {
                 config.weightedRandom(
                     weightedRandom -> {
                       var customerWeight = 10;
+                      var stockItemsWeight = 10;
                       double totalCount = (2000.0 / customerWeight) * CUSTOMER_NUM_TRANSACTION;
-                      var stockItemsWeight =
-                          2000
-                              * (STOCK_ITEM_NUM_UNORDERED
-                                  - STOCK_ITEM_NUM_UNORDERED * LOAD_PROPORTION)
-                              / totalCount;
-                      var productAvailabilityWeight =
-                          1199 + 100 - customerWeight - stockItemsWeight;
+                      var productAvailabilityWeight = 1279;
                       var targetOpsPerMilli =
                           totalCount
                               * (1 / SIMULATED_WORKLOAD_DURATION_HOURS)
@@ -444,7 +444,7 @@ public class LogisticBenchmark {
                           .weightedSpecification(350, "find_warehouses_for_order")
                           .totalCount((int) totalCount)
                           .targetOps(targetOpsPerMilli)
-                          .threadCount(50);
+                          .threadCount(15);
                     }))
         .build();
   }
