@@ -32,6 +32,10 @@ services:
     environment:
       ES_JAVA_OPTS: "-Xms1g -Xmx1g"
       discovery.type: "single-node"
+    volumes:
+      - type: "bind"
+        source: "elasticsearch"
+        target: "/usr/share/elasticsearch/data"
     deploy:
       resources:
         limits:
@@ -45,6 +49,9 @@ services:
       - "127.0.0.1:9090:9090"
     volumes:
       - "./prometheus:/etc/prometheus:ro"
+      - type: "bind"
+        source: "prometheus"
+        target: "/prometheus"
     restart: "on-failure"
     deploy:
       resources:
@@ -60,6 +67,12 @@ services:
         reservations:
           cpus: '2'
           memory: '8G'
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - type: "bind"
+        source: "mongodb"
+        target: "/data/db"
   ycsb-squared:
     image: "ycsb-squared"
     build:
@@ -77,3 +90,8 @@ services:
         reservations:
           cpus: '1'
           memory: '3G'
+
+volumes:
+  mongodb:
+  prometheus:
+  elasticsearch:
