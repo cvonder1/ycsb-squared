@@ -2,28 +2,26 @@ package de.claasklar.generation.suppliers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import de.claasklar.idStore.IdStore;
-import de.claasklar.idStore.IdStoreStub;
+import de.claasklar.idStore.InMemoryIdStore;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
-import de.claasklar.random.distribution.id.IdDistribution;
+import de.claasklar.random.distribution.id.IdDistributionFactory;
 import org.junit.jupiter.api.Test;
 
 public class VariableSuppliersTest {
-  private final IdStore idStore = new IdStoreStub();
+  private final IdStore idStore = new InMemoryIdStore();
   private final CollectionName collectionName = new CollectionName("test");
   private final VariableSuppliers testSubject = new VariableSuppliers(idStore);
+  private final IdDistributionFactory idDistributionFactory = new IdDistributionFactory();
 
   @Test
   public void testExistingIdShouldReturnTheOnlyExistingId() {
     // given
-    var idDistribution = mock(IdDistribution.class);
-    when(idDistribution.next()).thenReturn(new IdLong(1));
     idStore.store(collectionName, new IdLong(1));
-    var variableSupplier = testSubject.existingId("test", collectionName, idDistribution);
+    var variableSupplier =
+        testSubject.existingId("test", collectionName, idDistributionFactory.uniform(4));
     // when
     var variables = variableSupplier.get();
     // then
@@ -33,11 +31,9 @@ public class VariableSuppliersTest {
   @Test
   public void testExistingIdShouldReturnTheSecondId() {
     // given
-    var idDistribution = mock(IdDistribution.class);
-    when(idDistribution.next()).thenReturn(new IdLong(1));
-    when(idDistribution.next()).thenReturn(new IdLong(2));
     idStore.store(collectionName, new IdLong(2));
-    var variableSupplier = testSubject.existingId("test", collectionName, idDistribution);
+    var variableSupplier =
+        testSubject.existingId("test", collectionName, idDistributionFactory.uniform(4));
     // when
     var variables = variableSupplier.get();
     // then

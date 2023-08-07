@@ -9,6 +9,7 @@ import de.claasklar.util.Pair;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -90,9 +91,43 @@ public class WeightedRandomTransactionPhaseTest {
     assertThat(duration).isCloseTo(2000, Percentage.withPercentage(20));
   }
 
+  @Test
+  public void testRunShouldNotWaitIfRunnableTakesTooLong() {
+    // given
+    var specification =
+        specificationMock(
+            () -> {
+              try {
+                Thread.sleep(Duration.ofMillis(2));
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            });
+
+    var testSubject =
+        new WeightedRandomTransactionPhase(
+            500,
+            1,
+            1,
+            List.of(new Pair<>(1.0, specification)),
+            random,
+            tracer.spanBuilder("test span").startSpan(),
+            tracer);
+    // when
+    var start = Clock.systemUTC().instant();
+    testSubject.run();
+    var duration = start.until(Clock.systemUTC().instant(), ChronoUnit.MILLIS);
+    // then
+    assertThat(duration).isCloseTo(1000, Percentage.withPercentage(20));
+  }
+
   private TopSpecification specificationMock() {
+    return specificationMock(() -> {});
+  }
+
+  private TopSpecification specificationMock(Runnable r) {
     var specification = mock(TopSpecification.class);
-    when(specification.runnable()).thenReturn(() -> {});
+    when(specification.runnable()).thenReturn(r);
     when(specification.getName()).thenReturn("test_spec");
     return specification;
   }
