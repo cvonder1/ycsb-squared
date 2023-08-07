@@ -1,9 +1,11 @@
 package de.claasklar.random.distribution.document;
 
+import de.claasklar.phase.PhaseTopic;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.random.distribution.DistributionProperties;
 import de.claasklar.random.distribution.id.IdDistribution;
 import de.claasklar.specification.DocumentGenerationSpecificationRegistry;
+import de.claasklar.util.Subject;
 import io.opentelemetry.api.trace.Span;
 import java.util.List;
 
@@ -42,5 +44,13 @@ public class ComputeDocumentDistribution implements DocumentDistribution {
   public List<DistributionProperties> distributionProperties() {
     return DistributionProperties.and(
         List.of(DistributionProperties.REPEATABLE), idDistribution.distributionProperties());
+  }
+
+  @Override
+  public void update(PhaseTopic.BenchmarkPhase update) {}
+
+  @Override
+  public void setSubject(Subject<PhaseTopic.BenchmarkPhase> subject) {
+    subject.unregister(this);
   }
 }

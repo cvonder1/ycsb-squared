@@ -3,9 +3,11 @@ package de.claasklar.random.distribution.document;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import de.claasklar.database.Database;
+import de.claasklar.phase.PhaseTopic;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
 import de.claasklar.random.distribution.DistributionProperties;
+import de.claasklar.util.Subject;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
@@ -32,6 +34,8 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
   private final Database database;
   private final Executor executor;
   private final Tracer tracer;
+  private Subject<PhaseTopic.BenchmarkPhase> benchmarkPhaseSubject;
+  private PhaseTopic.BenchmarkPhase benchmarkPhase;
 
   public ExistingDocumentDistribution(
       int bufferSize,
@@ -156,5 +160,15 @@ public class ExistingDocumentDistribution implements DocumentDistribution {
   @Override
   public List<DistributionProperties> distributionProperties() {
     return Collections.emptyList();
+  }
+
+  @Override
+  public synchronized void update(PhaseTopic.BenchmarkPhase update) {
+    this.benchmarkPhase = update;
+  }
+
+  @Override
+  public synchronized void setSubject(Subject<PhaseTopic.BenchmarkPhase> subject) {
+    this.benchmarkPhaseSubject = subject;
   }
 }

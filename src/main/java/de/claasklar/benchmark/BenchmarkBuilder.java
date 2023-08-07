@@ -63,6 +63,7 @@ public class BenchmarkBuilder {
   private final Map<String, PrimaryWriteSpecificationConfig> primaryWriteSpecificationConfigs;
   private final List<ReadSpecificationConfig> readSpecifications;
   private final List<IndexConfiguration> indexConfigurations;
+  private final PhaseTopic phaseTopic;
   @NotNull private LoadPhaseConfig loadPhaseConfig;
   @NotNull private TransactionPhaseConfig transactionPhaseConfig;
 
@@ -96,6 +97,7 @@ public class BenchmarkBuilder {
     primaryWriteSpecificationConfigs = new HashMap<>();
     readSpecifications = new LinkedList<>();
     indexConfigurations = new LinkedList<>();
+    phaseTopic = new PhaseTopic();
   }
 
   public static BenchmarkBuilder builder() {
@@ -125,6 +127,7 @@ public class BenchmarkBuilder {
                 primaryWriteSpecificationConfigs.values().stream().map(it -> it.collectionName))
             .toList();
     database = databaseSupplier.apply(allCollections);
+    phaseTopic.register(database);
     idStore = new InMemoryIdStore();
     executorService = Executors.newVirtualThreadPerTaskExecutor();
     clock = Clock.systemUTC();
@@ -230,6 +233,8 @@ public class BenchmarkBuilder {
       topLevelSpecifications.put(readSpecificationConfig.name, specification);
     }
 
+    topLevelSpecifications.values().forEach(phaseTopic::register);
+
     var loadPhase =
         new LoadPhase(
             loadPhaseConfig.primaryWriteSpecifications.stream()
@@ -247,7 +252,8 @@ public class BenchmarkBuilder {
         transactionPhase,
         database,
         executorServices.stream().filter(Objects::nonNull).toList(),
-        applicationSpan);
+        applicationSpan,
+        phaseTopic);
   }
 
   private Set<@NotNull CollectionName> allWriteDocumentDistributions() {
@@ -294,14 +300,15 @@ public class BenchmarkBuilder {
       if (existingExecutorService == null) {
         existingExecutorService = executorService;
       }
-      return new Pair<>(
+      var existingDocumentDistribution =
           new ExistingDocumentDistribution(
               config.existingDocumentDistributionConfig.bufferSize,
               simpleDocumentDistribution,
               database,
               existingExecutorService,
-              tracer),
-          existingExecutorService);
+              tracer);
+      phaseTopic.register(existingDocumentDistribution);
+      return new Pair<>(existingDocumentDistribution, existingExecutorService);
     } else if (config.recomputableDocumentDistributionConfig != null) {
       return new Pair<>(
           new ComputeDocumentDistribution(config.collectionName, config.idDistribution, registry),

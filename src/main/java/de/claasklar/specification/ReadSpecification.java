@@ -4,6 +4,8 @@ import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import de.claasklar.database.Database;
 import de.claasklar.generation.QueryGenerator;
+import de.claasklar.phase.PhaseTopic;
+import de.claasklar.util.Subject;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.trace.Tracer;
@@ -17,7 +19,7 @@ public final class ReadSpecification implements TopSpecification {
   private final LongHistogram histogram;
   private final Tracer tracer;
   private final Clock clock;
-  private final Attributes attributes;
+  private Attributes attributes;
 
   public ReadSpecification(
       String name,
@@ -50,4 +52,12 @@ public final class ReadSpecification implements TopSpecification {
   public String getName() {
     return name;
   }
+
+  @Override
+  public void update(PhaseTopic.BenchmarkPhase update) {
+    attributes = Attributes.builder().putAll(attributes).put("phase", update.toString()).build();
+  }
+
+  @Override
+  public void setSubject(Subject<PhaseTopic.BenchmarkPhase> subject) {}
 }

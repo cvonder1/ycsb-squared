@@ -9,6 +9,7 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.*;
 import de.claasklar.database.Database;
+import de.claasklar.phase.PhaseTopic;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.Id;
 import de.claasklar.primitives.document.NestedObjectValue;
@@ -19,9 +20,7 @@ import de.claasklar.primitives.query.AggregationOptions;
 import de.claasklar.primitives.query.Find;
 import de.claasklar.primitives.query.FindOptions;
 import de.claasklar.primitives.query.Query;
-import de.claasklar.util.Pair;
-import de.claasklar.util.TelemetryConfig;
-import de.claasklar.util.TelemetryUtil;
+import de.claasklar.util.*;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongHistogram;
 import io.opentelemetry.api.trace.Span;
@@ -46,6 +45,7 @@ public class MongoDatabase implements Database {
   private final LongHistogram histogram;
   private final Clock clock;
   private final Map<CollectionName, MongoCollection<OurDocument>> collections;
+  private PhaseTopic.BenchmarkPhase benchmarkPhase;
 
   MongoDatabase(
       MongoClient client,
@@ -80,7 +80,12 @@ public class MongoDatabase implements Database {
       histogram.record(
           start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION),
           Attributes.of(
-              stringKey("collection"), collectionName.toString(), stringKey("operation"), "WRITE"));
+              stringKey("collection"),
+              collectionName.toString(),
+              stringKey("operation"),
+              "WRITE",
+              stringKey("phase"),
+              benchmarkPhase.toString()));
       return document;
     } catch (Exception e) {
       writeSpan.recordException(e);
@@ -105,7 +110,12 @@ public class MongoDatabase implements Database {
       histogram.record(
           start.until(clock.instant(), TelemetryConfig.DURATION_RESOLUTION),
           Attributes.of(
-              stringKey("collection"), collectionName.toString(), stringKey("operation"), "READ"));
+              stringKey("collection"),
+              collectionName.toString(),
+              stringKey("operation"),
+              "READ",
+              stringKey("phase"),
+              benchmarkPhase.toString()));
       if (document == null) {
         readSpan.addEvent("found no document");
         return Optional.empty();
@@ -191,7 +201,9 @@ public class MongoDatabase implements Database {
             stringKey("collection"),
             find.getCollectionName().toString(),
             stringKey("operation"),
-            find.getQueryName()));
+            find.getQueryName(),
+            stringKey("phase"),
+            benchmarkPhase.toString()));
   }
 
   private <T> void applyFindOptions(
@@ -270,7 +282,9 @@ public class MongoDatabase implements Database {
             stringKey("collection"),
             aggregation.getCollectionName().toString(),
             stringKey("operation"),
-            aggregation.getQueryName()));
+            aggregation.getQueryName(),
+            stringKey("phase"),
+            benchmarkPhase.toString()));
   }
 
   private AggregateIterable<NestedObjectValue> aggregateIterableFromOptions(
@@ -433,4 +447,12 @@ public class MongoDatabase implements Database {
   public void close() {
     this.client.close();
   }
+
+  @Override
+  public synchronized void update(PhaseTopic.BenchmarkPhase update) {
+    benchmarkPhase = update;
+  }
+
+  @Override
+  public void setSubject(Subject<PhaseTopic.BenchmarkPhase> subject) {}
 }
