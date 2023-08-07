@@ -78,6 +78,7 @@ class TransactionRunnable implements Runnable {
       while (opsCount < targetOps) {
         try {
           var spec = selectOneSpecification();
+          logger.atDebug().log(() -> "running " + spec.getName() + " specification next");
           spec.runnable().run();
           opsCount++;
           throttleNanos();
@@ -114,7 +115,9 @@ class TransactionRunnable implements Runnable {
   }
 
   private void sleepUntil(long deadlineNs) {
-    LockSupport.parkNanos(deadlineNs - System.nanoTime());
+    var sleepTime = deadlineNs - System.nanoTime();
+    logger.atTrace().log(() -> "sleeping for " + sleepTime + "ns");
+    LockSupport.parkNanos(sleepTime);
   }
 
   private Span newSpan() {
