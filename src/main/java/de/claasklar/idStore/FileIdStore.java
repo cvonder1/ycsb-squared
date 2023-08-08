@@ -46,7 +46,7 @@ public class FileIdStore implements IdStore {
       } catch (EOFException ignored) {
         byteRead = new byte[1];
       }
-      var pos = (int) id % 8;
+      var pos = (int) (id % 8);
       short filter = filters[pos];
       byteRead[0] |= filter;
       file.seek(id / 8);
@@ -86,7 +86,7 @@ public class FileIdStore implements IdStore {
     lock.lock();
     try {
       var byteRead = this.readByteContainingId(file, id);
-      var pos = (int) id % 8;
+      var pos = (int) (id % 8);
       short filter = this.filters[pos];
       short unsignedRes = (short) (byteRead[0] & filter);
       return unsignedRes > 0;

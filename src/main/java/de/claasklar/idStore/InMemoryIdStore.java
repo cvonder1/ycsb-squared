@@ -43,7 +43,7 @@ public class InMemoryIdStore implements IdStore {
         list = Arrays.copyOf(list, (int) pos + 1);
         lockAndList.second().array = list;
       }
-      short filter = filters[(int) id % 8];
+      short filter = filters[(int) (id % 8)];
       list[(int) pos] |= filter;
     } finally {
       lockAndList.first().writeLock().unlock();
@@ -63,8 +63,8 @@ public class InMemoryIdStore implements IdStore {
         throw new UnsupportedOperationException(
             "ids are only supported up to " + Integer.MAX_VALUE);
       }
-      byte byteContainingId = list[(int) id / 8];
-      var filter = filters[(int) id % 8];
+      byte byteContainingId = list[(int) (id / 8)];
+      var filter = filters[(int) (id % 8)];
       short unsignedRes = (short) (byteContainingId & filter);
       return unsignedRes > 0;
     } catch (ArrayIndexOutOfBoundsException e) {
