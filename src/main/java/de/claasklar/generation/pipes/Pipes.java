@@ -69,14 +69,16 @@ public class Pipes {
     }
 
     public Pipe<Map<CollectionName, OurDocument[]>, ObjectValue> toObject() {
-      return this.pipe.pipe(
-          input -> {
-            if (((OurDocument[]) input).length > 0) {
-              return ((OurDocument[]) input)[0];
-            } else {
-              return NullValue.VALUE;
-            }
-          });
+      return this.pipe
+          .pipe(input -> (Map) input)
+          .pipe(
+              input -> {
+                if (input != null) {
+                  return (NestedObjectValue) toValue(input);
+                } else {
+                  return NullValue.VALUE;
+                }
+              });
     }
 
     public Pipe<Map<CollectionName, OurDocument[]>, Id> toId() {
