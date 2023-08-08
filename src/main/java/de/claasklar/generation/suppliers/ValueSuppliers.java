@@ -88,7 +88,7 @@ public class ValueSuppliers {
     return selectNonRepeating("", options, k, combiner);
   }
 
-  public ValueSupplier ssbRandomLengthString(int min, int max) {
+  public ValueSupplier alphaNumRandomLengthString(int min, int max) {
     var alphaNum = "0123456789abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ,";
     return () -> {
       var length = random.nextInt(min, max);

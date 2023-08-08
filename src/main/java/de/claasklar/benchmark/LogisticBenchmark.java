@@ -50,8 +50,8 @@ public class LogisticBenchmark {
                     .collectionName("warehouses")
                     .documentGenerator(
                         ContextDocumentGeneratorBuilder.builder()
-                            .field("city", s -> s.ssbRandomLengthString(5, 15))
-                            .field("street", s -> s.ssbRandomLengthString(7, 30))
+                            .field("city", s -> s.alphaNumRandomLengthString(5, 15))
+                            .field("street", s -> s.alphaNumRandomLengthString(7, 30))
                             .field(
                                 "postal_code",
                                 () ->
@@ -146,7 +146,7 @@ public class LogisticBenchmark {
                     .collectionName("products")
                     .documentGenerator(
                         ContextlessDocumentGeneratorBuilder.builder()
-                            .field("name", s -> s.ssbRandomLengthString(10, 100))
+                            .field("name", s -> s.alphaNumRandomLengthString(10, 100))
                             .field("price", s -> s.uniformIntSupplier(1, 2000))
                             .build()))
         .writeSpecification(
@@ -155,9 +155,9 @@ public class LogisticBenchmark {
                     .collectionName("orders")
                     .documentGenerator(
                         ContextDocumentGeneratorBuilder.builder()
-                            .field("name", s -> s.ssbRandomLengthString(10, 30))
-                            .field("city", s -> s.ssbRandomLengthString(5, 15))
-                            .field("street", s -> s.ssbRandomLengthString(7, 30))
+                            .field("name", s -> s.alphaNumRandomLengthString(10, 30))
+                            .field("city", s -> s.alphaNumRandomLengthString(5, 15))
+                            .field("street", s -> s.alphaNumRandomLengthString(7, 30))
                             .field(
                                 "postal_code",
                                 () ->
@@ -191,7 +191,7 @@ public class LogisticBenchmark {
                     .collectionName("customers")
                     .documentGenerator(
                         ContextDocumentGeneratorBuilder.builder()
-                            .field("name", s -> s.ssbRandomLengthString(10, 30))
+                            .field("name", s -> s.alphaNumRandomLengthString(10, 30))
                             .fieldFromPipe(
                                 "order_ids",
                                 f ->

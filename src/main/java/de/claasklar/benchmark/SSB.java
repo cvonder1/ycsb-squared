@@ -16,7 +16,6 @@ import de.claasklar.generation.inserters.FixedKeyObjectInserter;
 import de.claasklar.generation.inserters.ObjectInserter;
 import de.claasklar.generation.pipes.Pipes.PipeBuilder;
 import de.claasklar.primitives.CollectionName;
-import de.claasklar.primitives.document.*;
 import de.claasklar.primitives.document.BoolValue;
 import de.claasklar.primitives.document.IntValue;
 import de.claasklar.primitives.document.LongValue;
@@ -1249,7 +1248,7 @@ public class SSB {
                     .field(
                         "address",
                         s ->
-                            s.ssbRandomLengthString(
+                            s.alphaNumRandomLengthString(
                                 (int) (C_ADDR_LEN * V_STR_LOW),
                                 (int) (C_ADDR_LEN * V_STR_HIGH) + 1))
                     .field(nationAndPhoneInserter(random))
@@ -1273,7 +1272,7 @@ public class SSB {
                     .field(
                         "address",
                         s ->
-                            s.ssbRandomLengthString(
+                            s.alphaNumRandomLengthString(
                                 (int) (S_ADDR_LEN * V_STR_LOW),
                                 (int) (S_ADDR_LEN * V_STR_HIGH) + 1))
                     .field(nationAndPhoneInserter(random))
