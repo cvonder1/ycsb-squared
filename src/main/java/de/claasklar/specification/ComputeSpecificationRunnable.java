@@ -1,6 +1,7 @@
 package de.claasklar.specification;
 
 import de.claasklar.generation.DocumentGenerator;
+import de.claasklar.idStore.IdStore;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
 import de.claasklar.primitives.document.OurDocument;
@@ -23,6 +24,7 @@ public class ComputeSpecificationRunnable implements DocumentGenerationSpecifica
   private final Span parentSpan;
   private final ReferencesDistribution[] referencesDistributions;
   private final DocumentGenerator documentGenerator;
+  private final IdStore idStore;
   private final ExecutorService executor;
   private final Tracer tracer;
   private final StdRandomNumberGenerator random = new StdRandomNumberGenerator();
@@ -35,12 +37,14 @@ public class ComputeSpecificationRunnable implements DocumentGenerationSpecifica
       Span parentSpan,
       ReferencesDistribution[] referencesDistributions,
       DocumentGenerator documentGenerator,
+      IdStore idStore,
       ExecutorService executor,
       Tracer tracer) {
     this.collectionName = collectionName;
     this.idLong = idLong;
     this.parentSpan = parentSpan;
     this.referencesDistributions = referencesDistributions;
+    this.idStore = idStore;
     this.documentGenerator = documentGenerator;
     this.executor = executor;
     this.tracer = tracer;
@@ -66,6 +70,9 @@ public class ComputeSpecificationRunnable implements DocumentGenerationSpecifica
               .map(pair -> pair.mapSecond(runnable -> runnable.execute(executor)))
               .collect(new MapCollector<>());
       this.document = documentGenerator.generateDocument(idLong, references);
+      if (!idStore.exists(collectionName, idLong.id())) {
+        idStore.store(collectionName, idLong);
+      }
     } catch (Exception e) {
       runSpan.setStatus(StatusCode.ERROR);
       runSpan.recordException(e);

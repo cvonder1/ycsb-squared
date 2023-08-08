@@ -1,6 +1,7 @@
 package de.claasklar.specification;
 
 import de.claasklar.generation.DocumentGenerator;
+import de.claasklar.idStore.IdStore;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.IdLong;
 import de.claasklar.random.distribution.DistributionProperties;
@@ -13,6 +14,7 @@ public class ComputeSpecification implements DocumentGenerationSpecification {
   private final CollectionName collectionName;
   private final DocumentGenerator generator;
   private final ReferencesDistribution[] referencesDistributions;
+  private final IdStore idStore;
   private final ExecutorService executor;
   private final Tracer tracer;
 
@@ -20,6 +22,7 @@ public class ComputeSpecification implements DocumentGenerationSpecification {
       CollectionName collectionName,
       DocumentGenerator generator,
       ReferencesDistribution[] referencesDistributions,
+      IdStore idStore,
       ExecutorService executor,
       Tracer tracer) {
     for (var referencesDistribution : referencesDistributions) {
@@ -27,7 +30,7 @@ public class ComputeSpecification implements DocumentGenerationSpecification {
           .distributionProperties()
           .contains(DistributionProperties.REPEATABLE)) {
         throw new IllegalArgumentException(
-            "not repeatable ReferencesDistribution for collection"
+            "not repeatable ReferencesDistribution for collection "
                 + referencesDistribution.getCollectionName()
                 + " is not acceptable");
       }
@@ -35,6 +38,7 @@ public class ComputeSpecification implements DocumentGenerationSpecification {
     this.collectionName = collectionName;
     this.generator = generator;
     this.referencesDistributions = referencesDistributions;
+    this.idStore = idStore;
     this.executor = executor;
     this.tracer = tracer;
   }
@@ -42,7 +46,7 @@ public class ComputeSpecification implements DocumentGenerationSpecification {
   @Override
   public DocumentGenerationSpecificationRunnable runnable(IdLong id, Span span) {
     return new ComputeSpecificationRunnable(
-        collectionName, id, span, referencesDistributions, generator, executor, tracer);
+        collectionName, id, span, referencesDistributions, generator, idStore, executor, tracer);
   }
 
   @Override

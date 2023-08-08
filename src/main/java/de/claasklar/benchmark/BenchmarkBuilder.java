@@ -167,6 +167,7 @@ public class BenchmarkBuilder {
                           return distribution.first();
                         })
                     .toArray(ReferencesDistribution[]::new),
+                idStore,
                 executorService,
                 tracer);
       } else {
