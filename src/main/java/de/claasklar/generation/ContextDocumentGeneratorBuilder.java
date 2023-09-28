@@ -3,6 +3,7 @@ package de.claasklar.generation;
 import de.claasklar.generation.inserters.InserterFactories;
 import de.claasklar.generation.inserters.InserterFactory;
 import de.claasklar.generation.inserters.ObjectInserter;
+import de.claasklar.generation.inserters.ObjectInserters;
 import de.claasklar.generation.pipes.Pipe;
 import de.claasklar.generation.pipes.Pipes;
 import de.claasklar.generation.pipes.Pipes.PipeBuilder;
@@ -78,9 +79,14 @@ public class ContextDocumentGeneratorBuilder {
     return this;
   }
 
-  public ContextDocumentGeneratorBuilder field(ObjectInserter inserter) {
+  public ContextDocumentGeneratorBuilder fieldObjectInserter(ObjectInserter inserter) {
     this.inserterFactories.add(factory.insertFromObjectInserter(inserter));
     return this;
+  }
+
+  public ContextDocumentGeneratorBuilder fieldObjectInserters(
+      Function<ObjectInserters, ObjectInserter> inserterFactory) {
+    return this.fieldObjectInserter(inserterFactory.apply(new ObjectInserters()));
   }
 
   public static class FieldPipeBuilder {
