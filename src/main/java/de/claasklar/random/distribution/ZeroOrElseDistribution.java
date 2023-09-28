@@ -19,7 +19,7 @@ public class ZeroOrElseDistribution implements Distribution<Long> {
 
   @Override
   public Long sample() {
-    if (stdRandomNumberGenerator.nextDouble(0, 1) > pZero) {
+    if (stdRandomNumberGenerator.nextDouble(0, 1) <= pZero) {
       return 0L;
     } else {
       return otherDistribution.sample();
@@ -28,6 +28,7 @@ public class ZeroOrElseDistribution implements Distribution<Long> {
 
   @Override
   public List<DistributionProperties> distributionProperties() {
-    return List.of(DistributionProperties.REPEATABLE);
+    return DistributionProperties.and(
+        otherDistribution.distributionProperties(), List.of(DistributionProperties.REPEATABLE));
   }
 }

@@ -13,4 +13,6 @@ Access to metrics: [Prometheus](http://localhost:9090)
 
 ## Examples
 To get a first impression how the framework can be used, have a look at `de.claasklar.benchmark.LogisticBenchmark`.
+The LogisticBenchmark simulates a warehouse system.
+
 `SSB` creates a MongoDB benchmark according to the Star Schema Benchmark.
