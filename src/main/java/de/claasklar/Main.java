@@ -13,6 +13,8 @@ public class Main {
   public static void main(String[] args) throws InterruptedException {
     //    var benchmark = SSB.createSSBEmbedded(1);
     var benchmark = new LogisticBenchmark().createLogisticBenchmark();
+    //    var benchmark = new LogisticBenchmark().createLogisticBenchmark();
+    //    var benchmark = new CruditBenchmark().createCruditBenchmark();
     var span = benchmark.getApplicationSpan();
     try {
       benchmark.runAll();
