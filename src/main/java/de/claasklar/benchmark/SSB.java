@@ -1064,7 +1064,7 @@ public class SSB {
                                 c -> c.selectByPath("$.[0]._id").toId()))
                     .field("orderpriority", s -> s.uniformSelection(priorities))
                     .field("shippriority", s -> s.fixedString("0"))
-                    .field(
+                    .fieldObjectInserter(
                         (object) -> {
                           var quantity = random.nextLong(L_QTY_MIN, L_QTY_MAX + 1);
                           var rprice = rpbRoutine(random);
@@ -1787,7 +1787,7 @@ public class SSB {
                         f -> f.selectCollection(new CollectionName("dates"), PipeBuilder::toObject))
                     .field("orderpriority", s -> s.uniformSelection(priorities))
                     .field("shippriority", s -> s.fixedString("0"))
-                    .field(
+                    .fieldObjectInserter(
                         (object) -> {
                           var quantity = random.nextLong(L_QTY_MIN, L_QTY_MAX + 1);
                           var rprice = rpbRoutine(random);

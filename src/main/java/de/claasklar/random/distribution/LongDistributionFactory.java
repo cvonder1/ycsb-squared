@@ -22,4 +22,9 @@ public class LongDistributionFactory {
   public Distribution<Long> shift(long shift, Supplier<Distribution<Long>> distributionSupplier) {
     return new ShiftDistribution(distributionSupplier.get(), shift);
   }
+
+  public Distribution<Long> zeroOrElse(
+      double pZero, Supplier<Distribution<Long>> distributionSupplier) {
+    return new ZeroOrElseDistribution(pZero, distributionSupplier.get(), stdRandomNumberGenerator);
+  }
 }
