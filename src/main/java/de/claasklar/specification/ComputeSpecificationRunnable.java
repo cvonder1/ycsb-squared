@@ -15,6 +15,7 @@ import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 public class ComputeSpecificationRunnable implements DocumentGenerationSpecificationRunnable {
@@ -63,11 +64,18 @@ public class ComputeSpecificationRunnable implements DocumentGenerationSpecifica
     random.setSeed(idLong.id());
     var runSpan = newSpan();
     try (var ignored = parentSpan.makeCurrent()) {
-      var references =
+      var referencesRunnables =
           Arrays.stream(referencesDistributions)
-              .parallel()
               .map(dist -> new Pair<>(dist.getCollectionName(), dist.next(runSpan)))
-              .map(pair -> pair.mapSecond(runnable -> runnable.execute(executor)))
+              .collect(new MapCollector<>());
+      var futures =
+          referencesRunnables.values().stream()
+              .map(it -> CompletableFuture.runAsync(it, executor))
+              .toArray(CompletableFuture[]::new);
+      CompletableFuture.allOf(futures).join();
+      var references =
+          referencesRunnables.entrySet().stream()
+              .map(entry -> new Pair<>(entry.getKey(), entry.getValue().getDocuments()))
               .collect(new MapCollector<>());
       this.document = documentGenerator.generateDocument(idLong, references);
       if (!idStore.exists(collectionName, idLong.id())) {
