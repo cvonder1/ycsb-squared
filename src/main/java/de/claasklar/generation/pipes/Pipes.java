@@ -59,11 +59,20 @@ public class Pipes {
 
     public Pipe<Map<CollectionName, OurDocument[]>, ArrayValue> toArray() {
       return this.pipe
-          .pipe(input -> (List) input)
+          .pipe(
+              input -> {
+                if (input instanceof List) {
+                  return ((List) input).stream();
+                } else if (input instanceof Object[]) {
+                  return Arrays.stream((Object[]) input);
+                } else {
+                  throw new IllegalArgumentException(input + " is of unknown type");
+                }
+              })
           .pipe(
               input -> {
                 var arrayValue = new ArrayValue();
-                input.stream().forEach(it -> arrayValue.add(toValue(it)));
+                input.forEach(it -> arrayValue.add(toValue(it)));
                 return arrayValue;
               });
     }
@@ -99,6 +108,8 @@ public class Pipes {
             .entrySet()
             .forEach(it -> value.put(it.getKey(), toValue(it.getValue())));
         return value;
+      } else if (o instanceof OurDocument) {
+        return (OurDocument) o;
       } else if (o instanceof byte[]) {
         var value = (byte[]) o;
         if (value.length == 12) {
