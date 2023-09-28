@@ -41,10 +41,7 @@ public class ContextDocumentGeneratorTest {
                 documentId.toId(),
                 Map.of(
                     "test_ids",
-                    new ArrayValue(
-                        Arrays.asList(
-                            new ByteValue(documents[0].getId().id()),
-                            new ByteValue(documents[1].getId().id()))))));
+                    new ArrayValue(Arrays.asList(documents[0].getId(), documents[1].getId())))));
   }
 
   @Test

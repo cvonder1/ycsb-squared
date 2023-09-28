@@ -36,6 +36,6 @@ public record Id(byte[] id) implements Value {
 
   @Override
   public String toString() {
-    return Arrays.toString(id);
+    return "Id{id=" + Arrays.toString(id) + "}";
   }
 }

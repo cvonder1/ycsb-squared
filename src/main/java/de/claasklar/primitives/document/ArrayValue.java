@@ -48,4 +48,9 @@ public final class ArrayValue implements Value, Iterable<Value> {
   public int hashCode() {
     return Objects.hash(values);
   }
+
+  @Override
+  public String toString() {
+    return "ArrayValue{values=" + values + "}";
+  }
 }
