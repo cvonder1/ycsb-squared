@@ -11,7 +11,7 @@ import de.claasklar.generation.DocumentGenerator;
 import de.claasklar.generation.QueryGenerator;
 import de.claasklar.generation.suppliers.VariableSuppliers;
 import de.claasklar.idStore.IdStore;
-import de.claasklar.idStore.InMemoryIdStore;
+import de.claasklar.idStore.SparseInMemoryIdStore;
 import de.claasklar.phase.*;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.index.IndexConfiguration;
@@ -128,7 +128,7 @@ public class BenchmarkBuilder {
             .toList();
     database = databaseSupplier.apply(allCollections);
     phaseTopic.register(database);
-    idStore = new InMemoryIdStore();
+    idStore = new SparseInMemoryIdStore();
     executorService = Executors.newVirtualThreadPerTaskExecutor();
     clock = Clock.systemUTC();
     applicationSpan = tracer.spanBuilder(TelemetryConfig.APPLICATION_SPAN_NAME).startSpan();

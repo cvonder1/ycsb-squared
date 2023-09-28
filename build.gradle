@@ -39,6 +39,7 @@ dependencies {
 	implementation 'org.mongodb:mongodb-driver-sync:4.9.1'
 	implementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final'
 	implementation 'org.apache.commons:commons-math3:3.6.1'
+	implementation 'com.zaxxer:SparseBitSet:1.2'
 
 	testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
 	testImplementation 'org.junit.jupiter:junit-jupiter-params:5.9.2'
