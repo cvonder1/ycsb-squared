@@ -38,7 +38,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -524,7 +523,8 @@ public class SSB {
   private static Consumer<BenchmarkBuilder.TransactionPhaseConfig> transactionPhaseConfig() {
     return transactionPhaseConfig ->
         // Run a power test, which executes every query in order for 100 times.
-        // The queries are drill-down queries. Therefore, it is realistic that they are executed in order.
+        // The queries are drill-down queries. Therefore, it is realistic that they are executed in
+        // order.
         transactionPhaseConfig.powerTest(
             powerTestConfig -> {
               for (int i = 0; i < 100; i++) {
@@ -1074,11 +1074,17 @@ public class SSB {
             .documentGenerator(
                 ContextDocumentGeneratorBuilder.builder()
                     .field("linenumber", s -> s.uniformIntSupplier(O_LCNT_MIN, O_LCNT_MAX))
+                    // select the referenced collection customers and store its id in the field
+                    // lineOrders.custkey
                     .fieldFromPipe(
                         "custkey",
                         f ->
                             f.selectCollection(
                                 new CollectionName("customers"),
+                                // The input is an array of customers. The pipe selects the first
+                                // element and only takes its id.
+                                // referenceDistributionConfig below makes sure, that exactly one
+                                // customer is in the input array.
                                 c -> c.selectByPath("$.[0]._id").toId()))
                     .fieldFromPipe(
                         "partkey",
@@ -1100,6 +1106,10 @@ public class SSB {
                                 c -> c.selectByPath("$.[0]._id").toId()))
                     .field("orderpriority", s -> s.uniformSelection(priorities))
                     .field("shippriority", s -> s.fixedString("0"))
+                    // fieldObjectInserter makes it possible to insert multiple values within the
+                    // same context.
+                    // The fields quantity, extendedprice, discount, revenue and supplycost all rely
+                    // on each other and have to be computed together.
                     .fieldObjectInserter(
                         (object) -> {
                           var quantity = random.nextLong(L_QTY_MIN, L_QTY_MAX + 1);
@@ -1125,16 +1135,19 @@ public class SSB {
                                 c -> c.selectByPath("$.[1]._id").toId()))
                     .field("shipmode", s -> s.uniformSelection(shipModes))
                     .build())
+            // referenceDistributionConfig configures how many and which customers are selected for
+            // each line order.
             .referenceDistributionConfig(
                 referenceConfig ->
                     referenceConfig
+                        // always select one customer.
                         .constantNumber(1)
                         .documentDistribution(
                             documentDistributionConfig ->
                                 documentDistributionConfig
                                     .collectionName("customers")
-                                    .idDistribution(f -> f.uniform(scaleFactor * 30_000L))
-                                    .existing()))
+                                    // select uniformly from all available customers.
+                                    .idDistribution(f -> f.uniform(scaleFactor * 30_000L))))
             .referenceDistributionConfig(
                 referenceConfig ->
                     referenceConfig
@@ -1160,10 +1173,7 @@ public class SSB {
                             documentDistributionConfig ->
                                 documentDistributionConfig
                                     .collectionName("suppliers")
-                                    .idDistribution(f -> f.uniform(scaleFactor * 2_000L))
-                                    .existing()
-                                    .bufferSize(100)
-                                    .executorService(Executors.newFixedThreadPool(1))))
+                                    .idDistribution(f -> f.uniform(scaleFactor * 2_000L))))
             .referenceDistributionConfig(
                 referencesDistributionConfig ->
                     referencesDistributionConfig
@@ -1175,10 +1185,7 @@ public class SSB {
                                     .idDistribution(
                                         f ->
                                             f.uniform(
-                                                D_START_DATE.until(D_END_DATE, ChronoUnit.DAYS)))
-                                    .existing()
-                                    .executorService(Executors.newFixedThreadPool(1))
-                                    .bufferSize(100)));
+                                                D_START_DATE.until(D_END_DATE, ChronoUnit.DAYS)))));
   }
 
   private static Consumer<BenchmarkBuilder.DocumentGenerationSpecificationConfig>
@@ -1861,15 +1868,26 @@ public class SSB {
                         f -> f.selectCollection(new CollectionName("dates"), PipeBuilder::toObject))
                     .field("shipmode", s -> s.uniformSelection(shipModes))
                     .build())
+            // referenceDistributionConfig configures how many and which customers are selected for
+            // each line order.
             .referenceDistributionConfig(
                 referenceConfig ->
                     referenceConfig
+                        // always select one customer
                         .constantNumber(1)
                         .documentDistribution(
                             documentDistributionConfig ->
                                 documentDistributionConfig
                                     .collectionName("customers")
+                                    // select uniformly from all available customers
                                     .idDistribution(f -> f.uniform(scaleFactor * 30_000L))
+                                    // When required, recompute the document from scratch.
+                                    // This can be done deterministically by using the customer's id
+                                    // as a seed to the random number generator.
+                                    // Recomputing the document removes the need to store the
+                                    // document in the database.
+                                    // In the embedded data model, there is no need for queryable
+                                    // dimension tables.
                                     .recomputable()))
             .referenceDistributionConfig(
                 referenceConfig ->
