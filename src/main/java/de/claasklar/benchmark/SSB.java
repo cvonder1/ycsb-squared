@@ -433,14 +433,30 @@ public class SSB {
 
   private static final RandomNumberGenerator random = new StdRandomNumberGenerator();
 
+  /**
+   * Create a benchmark configuration, which resembles the Star Schema Benchmark.
+   *
+   * <p>The schema consists of one fact collection, line_orders and the dimension collections
+   * suppliers, customers, parts and dates. The dimension collections are referenced via keys from
+   * the fact table.
+   *
+   * @param scaleFactor scales how many facts are loaded
+   * @return Benchmark for SSB
+   */
   public static Benchmark createSSBDenormalized(int scaleFactor) {
     return BenchmarkBuilder.builder()
+        // First we configure some metadata for the database.
         .database(databaseConfig())
+        // Write specifications give instructions on how to generate documents for a collection.
         .writeSpecification(writeSuppliersConfig())
         .writeSpecification(writeCustomersConfig())
         .writeSpecification(writePartsConfig())
         .writeSpecification(writeDatesConfig())
+        // Primary write specifications can be called in the load and transaction phase.
+        // They mark the top-level of a document hierarchy.
         .primaryWriteSpecification("write_lineOrders", writeLineOrdersConfig(scaleFactor))
+        // Read specifications configure queries to execute in the transaction phase.
+        // Those can either be "find" or "aggregate" queries.
         .readSpecification(queryQ1_1Config())
         .readSpecification(queryQ1_2Config())
         .readSpecification(queryQ1_3Config())
@@ -454,11 +470,23 @@ public class SSB {
         .readSpecification(queryQ4_1Config())
         .readSpecification(queryQ4_2Config())
         .readSpecification(queryQ4_3Config())
+        // In the load phase a certain percentage of the total data is loaded into the database
         .loadPhase(loadPhaseConfig(scaleFactor))
+        // In the transaction an actual workload can be simulated.
         .transactionPhase(transactionPhaseConfig())
         .build();
   }
 
+  /**
+   * Create a benchmark configuration, which resembles the Star Schema Benchmark.
+   *
+   * <p>The schema consists of one fact collection, line_orders and the dimension collections
+   * suppliers, customers, parts and dates. The dimension collections are embedded into the fact
+   * table.
+   *
+   * @param scaleFactor scales how many facts are loaded
+   * @return Benchmark for SSB
+   */
   public static Benchmark createSSBEmbedded(long scaleFactor) {
     return BenchmarkBuilder.builder()
         .database(databaseConfig())
@@ -495,6 +523,8 @@ public class SSB {
 
   private static Consumer<BenchmarkBuilder.TransactionPhaseConfig> transactionPhaseConfig() {
     return transactionPhaseConfig ->
+        // Run a power test, which executes every query in order for 100 times.
+        // The queries are drill-down queries. Therefore, it is realistic that they are executed in order.
         transactionPhaseConfig.powerTest(
             powerTestConfig -> {
               for (int i = 0; i < 100; i++) {
@@ -508,7 +538,13 @@ public class SSB {
   private static Consumer<BenchmarkBuilder.LoadPhaseConfig> loadPhaseConfig(long scaleFactor) {
     return loadPhaseConfig ->
         loadPhaseConfig
+            // Load a multitude of 6000000 line orders into the database.
             .primaryWriteSpecification(scaleFactor * 6_000_000L, "write_lineOrders")
+            // Run 100 client threads concurrently.
+            // Each client thread executes one primary write specification at the time
+            // However the total number of concurrent threads is larger, because every primary write
+            // specification references other write specifications, which are most of the time
+            // executed in their own thread.
             .numThreads(100);
   }
 
@@ -1202,6 +1238,11 @@ public class SSB {
                     .build());
   }
 
+  /**
+   * Configure parts dimension table according to SSB spec.
+   *
+   * @return Configuration for parts dimension table
+   */
   private static Consumer<BenchmarkBuilder.DocumentGenerationSpecificationConfig>
       writePartsConfig() {
     return config ->
@@ -1232,6 +1273,11 @@ public class SSB {
                     .build());
   }
 
+  /**
+   * Configures the customer dimension table according to the SSB spec.
+   *
+   * @return Configuration for customer collection
+   */
   private static Consumer<BenchmarkBuilder.DocumentGenerationSpecificationConfig>
       writeCustomersConfig() {
     return config ->
@@ -1258,10 +1304,14 @@ public class SSB {
 
   private static Consumer<BenchmarkBuilder.DocumentGenerationSpecificationConfig>
       writeSuppliersConfig() {
+    // generate documents for the suppliers dimension table
     return config ->
         config
             .collectionName("suppliers")
+            // The document generator is invoked for every newly requested supplier.
             .documentGenerator(
+                // the dimension table has fields for name, address, region information and the
+                // phone number
                 ContextlessDocumentGeneratorBuilder.builder()
                     .field(
                         "name",
@@ -1275,6 +1325,8 @@ public class SSB {
                             s.alphaNumRandomLengthString(
                                 (int) (S_ADDR_LEN * V_STR_LOW),
                                 (int) (S_ADDR_LEN * V_STR_HIGH) + 1))
+                    // the phone number relies on the region information, therefore there are
+                    // generated in the same context
                     .field(nationAndPhoneInserter(random))
                     .build());
   }
@@ -1862,6 +1914,12 @@ public class SSB {
                                     .recomputable()));
   }
 
+  /**
+   * Generates the nation, region, city and phone fields according to the SSB spec.
+   *
+   * @param random RandomNumberGenerator
+   * @return ObjectInserter for region and phone information
+   */
   private static ObjectInserter nationAndPhoneInserter(RandomNumberGenerator random) {
     return (it) -> {
       var nationI = random.nextInt(0, nations.length);

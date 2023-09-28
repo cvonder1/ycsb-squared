@@ -22,8 +22,9 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * LogisticBenchmark provides two benchmark configuration for simulating the operation of a nationwide warehouse chain.
- * One configuration is using a data model with referencing between documents, the other one uses embedding.
+ * LogisticBenchmark provides two benchmark configuration for simulating the operation of a
+ * nationwide warehouse chain. One configuration is using a data model with referencing between
+ * documents, the other one uses embedding.
  */
 public class LogisticBenchmark {
 
