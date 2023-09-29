@@ -38,16 +38,39 @@ public class ContextDocumentGeneratorBuilder {
         inserterFactories.toArray(new InserterFactory[inserterFactories.size()]));
   }
 
+  /**
+   * Insert a field into the object with the given key and the value supplied by the {@link
+   * ValueSupplier}
+   *
+   * @param key key of the inserted field
+   * @param supplier supplies the field's value
+   * @return this
+   */
   public ContextDocumentGeneratorBuilder field(String key, ValueSupplier supplier) {
     this.inserterFactories.add(factory.insertFromSupplier(key, supplier));
     return this;
   }
 
+  /**
+   * Convenience method for access to {@link ValueSuppliers}
+   *
+   * @see ContextDocumentGeneratorBuilder#field(String, ValueSupplier)
+   * @param key key of the inserted field
+   * @param config function, which returns the supplier for the field's value
+   * @return this
+   */
   public ContextDocumentGeneratorBuilder field(
       String key, Function<ValueSuppliers, ValueSupplier> config) {
     return this.field(key, config.apply(new ValueSuppliers(new StdRandomNumberGenerator())));
   }
 
+  /**
+   * Inserts a value provided by the pipe into the object with the given key.
+   *
+   * @param key key of the inserted field
+   * @param fieldConfig configure the pipe
+   * @return this
+   */
   public ContextDocumentGeneratorBuilder fieldFromPipe(
       String key, Consumer<FieldPipeBuilder> fieldConfig) {
     var fieldBuilder = new FieldPipeBuilder();
@@ -79,11 +102,26 @@ public class ContextDocumentGeneratorBuilder {
     return this;
   }
 
+  /**
+   * Apply the given ObjectInserter to the object. This is useful, when multiple fields are related
+   * and need information from the same context. For example the effective price depends on the
+   * applied tax and net price.
+   *
+   * @param inserter ObjectInserter is applied to object
+   * @return this
+   */
   public ContextDocumentGeneratorBuilder fieldObjectInserter(ObjectInserter inserter) {
     this.inserterFactories.add(factory.insertFromObjectInserter(inserter));
     return this;
   }
 
+  /**
+   * Get ObjectInserter from {@link ObjectInserters} factory.
+   *
+   * @see ContextDocumentGeneratorBuilder#fieldObjectInserter(ObjectInserter)
+   * @param inserterFactory create ObjectInserter used to populate the object
+   * @return this
+   */
   public ContextDocumentGeneratorBuilder fieldObjectInserters(
       Function<ObjectInserters, ObjectInserter> inserterFactory) {
     return this.fieldObjectInserter(inserterFactory.apply(new ObjectInserters()));
@@ -93,6 +131,14 @@ public class ContextDocumentGeneratorBuilder {
 
     private Pipe<Map<CollectionName, OurDocument[]>, ? extends Value> pipe;
 
+    /**
+     * Select the collection with collectionName from all referenced collections. The output to the
+     * next pipe is an array {@link OurDocument OurDocument[]}.
+     *
+     * @param collectionName collection name
+     * @param pipeConfig further pipe configuration
+     * @return Pipe, which returns a Value
+     */
     public Pipe<Map<CollectionName, OurDocument[]>, ? extends Value> selectCollection(
         CollectionName collectionName,
         Function<PipeBuilder, Pipe<Map<CollectionName, OurDocument[]>, ? extends Value>>

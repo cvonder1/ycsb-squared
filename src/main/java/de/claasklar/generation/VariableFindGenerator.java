@@ -9,6 +9,9 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A {@link QueryGenerator} implementation that returns a find query with changeable variables.
+ */
 public class VariableFindGenerator implements QueryGenerator {
 
   private static final Logger logger = LoggerFactory.getLogger(VariableFindGenerator.class);

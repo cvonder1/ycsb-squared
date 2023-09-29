@@ -52,6 +52,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator;
 
+/** Class for building a benchmark, which can be run. */
 public class BenchmarkBuilder {
 
   private Function<List<CollectionName>, Database> databaseSupplier;
@@ -362,6 +363,12 @@ public class BenchmarkBuilder {
     }
   }
 
+  /**
+   * Configure MongoDB Database. Configuration includes read/write concerns and connection settings.
+   *
+   * @param config applied to the mongo configuration
+   * @return this
+   */
   public BenchmarkBuilder database(Consumer<MongoConfiguration> config) {
     var mongoConfiguration = new MongoConfiguration();
     config.accept(mongoConfiguration);
@@ -405,45 +412,103 @@ public class BenchmarkBuilder {
     private WriteConcern databaseWriteConcern = WriteConcern.JOURNALED;
     private ConnectionString connectionString = new ConnectionString("mongodb://mongodb");
 
+    /**
+     * <a href="https://www.mongodb.com/docs/manual/core/read-preference/">MongoDB Doc</a>
+     *
+     * @param collectionName collection the config is applied to
+     * @param readPreference selected read preference
+     * @return this
+     */
     public MongoConfiguration collectionReadPreference(
         CollectionName collectionName, ReadPreference readPreference) {
       collectionsReadPreferences.put(collectionName, readPreference);
       return this;
     }
 
+    /**
+     * "The readConcern option allows you to control the consistency and isolation properties of the
+     * data read from replica sets and replica set shards." from <a
+     * href="https://www.mongodb.com/docs/manual/reference/read-concern/">MongoDB Doc</a>.
+     *
+     * @param collectionName collection the config is applied to
+     * @param readConcern selected read concern
+     * @return this
+     */
     public MongoConfiguration collectionReadConcern(
         CollectionName collectionName, ReadConcern readConcern) {
       collectionsReadConcerns.put(collectionName, readConcern);
       return this;
     }
 
-    public MongoConfiguration collectionWriteConcerns(
+    /**
+     * "Write concern describes the level of acknowledgment requested from MongoDB for write
+     * operations to a standalone mongod or to Replica sets or to sharded clusters." from <a
+     * href="https://www.mongodb.com/docs/manual/reference/write-concern/">MongoDB Doc</a>.
+     *
+     * @param collectionName collection the config is applied to
+     * @param writeConcern selected write concern
+     * @return this
+     */
+    public MongoConfiguration collectionWriteConcern(
         CollectionName collectionName, WriteConcern writeConcern) {
       collectionsWriteConcerns.put(collectionName, writeConcern);
       return this;
     }
 
+    /**
+     * Set default read preference for database.
+     *
+     * @param readPreference selected read preference
+     * @return this
+     */
     public MongoConfiguration databaseReadPreference(ReadPreference readPreference) {
       this.databaseReadPreference = readPreference;
       return this;
     }
 
+    /**
+     * Set default read concern for database.
+     *
+     * @param readConcern selected read concern
+     * @return this
+     */
     public MongoConfiguration databaseReadConcern(ReadConcern readConcern) {
       this.databaseReadConcern = readConcern;
       return this;
     }
 
+    /**
+     * Set default write concern for database
+     *
+     * @param writeConcern selected write concern
+     * @return this
+     */
     public MongoConfiguration databaseWriteConcern(WriteConcern writeConcern) {
       this.databaseWriteConcern = writeConcern;
       return this;
     }
 
+    /**
+     * Connection string for connecting to database. Default: "mongodb://mongodb"
+     *
+     * @param connectionString address to connect to
+     * @return this
+     */
     public MongoConfiguration connectionString(ConnectionString connectionString) {
       this.connectionString = connectionString;
       return this;
     }
   }
 
+  /**
+   * Configure a {@link de.claasklar.specification.WriteSpecification WriteSpecification} to be used
+   * in this benchmark.
+   *
+   * @see de.claasklar.specification.WriteSpecification
+   * @see DocumentGenerationSpecificationConfig
+   * @param configConsumer applied to the DocumentGenerationSpecificationConfig
+   * @return this
+   */
   public BenchmarkBuilder writeSpecification(
       Consumer<DocumentGenerationSpecificationConfig> configConsumer) {
     var config = new DocumentGenerationSpecificationConfig();
@@ -452,6 +517,15 @@ public class BenchmarkBuilder {
     return this;
   }
 
+  /**
+   * Configure primary write specification. In contrast to a {@link WriteSpecification} a {@link
+   * PrimaryWriteSpecification} marks the top of a document hierarchy. The primary write
+   * specification can be called in both the load and transaction phase.
+   *
+   * @param name name of the specification
+   * @param configConsumer applies configuration
+   * @return this
+   */
   public BenchmarkBuilder primaryWriteSpecification(
       String name, Consumer<PrimaryWriteSpecificationConfig> configConsumer) {
     var config = new PrimaryWriteSpecificationConfig();
@@ -460,6 +534,7 @@ public class BenchmarkBuilder {
     return this;
   }
 
+  /** Configure a {@link WriteSpecification} */
   public static class DocumentGenerationSpecificationConfig {
     @NotNull private CollectionName collectionName;
     @NotNull private DocumentGenerator documentGenerator;
@@ -469,17 +544,38 @@ public class BenchmarkBuilder {
       referencesDistributionConfigs = new LinkedList<>();
     }
 
+    /**
+     * Set the specification's collection name.
+     *
+     * @param collectionName collection this specificaiton is for
+     * @return this
+     */
     public DocumentGenerationSpecificationConfig collectionName(String collectionName) {
       this.collectionName = new CollectionName(collectionName);
       return this;
     }
 
+    /**
+     * Set the document generator used for generating the document. The generator is invoked each
+     * time a new document for this specification is requested.
+     *
+     * @see de.claasklar.generation.ContextDocumentGeneratorBuilder
+     * @see de.claasklar.generation.ContextlessDocumentGeneratorBuilder
+     * @param documentGenerator generates the documents
+     * @return this
+     */
     public DocumentGenerationSpecificationConfig documentGenerator(
         DocumentGenerator documentGenerator) {
       this.documentGenerator = documentGenerator;
       return this;
     }
 
+    /**
+     * Configure which and how many documents are selected from another collection.
+     *
+     * @param configConsumer configuration
+     * @return this
+     */
     public DocumentGenerationSpecificationConfig referenceDistributionConfig(
         Consumer<ReferencesDistributionConfig> configConsumer) {
       var config = new ReferencesDistributionConfig();
@@ -511,17 +607,38 @@ public class BenchmarkBuilder {
       referencesDistributionConfigs = new LinkedList<>();
     }
 
+    /**
+     * Set the specification's collection name.
+     *
+     * @param collectionName collection this specificaiton is for
+     * @return this
+     */
     public PrimaryWriteSpecificationConfig collectionName(String collectionName) {
       this.collectionName = new CollectionName(collectionName);
       return this;
     }
 
+    /**
+     * Set the document generator used for generating the document. The generator is invoked each
+     * time a new document for this specification is requested.
+     *
+     * @see de.claasklar.generation.ContextDocumentGeneratorBuilder
+     * @see de.claasklar.generation.ContextlessDocumentGeneratorBuilder
+     * @param documentGenerator generates the documents
+     * @return this
+     */
     public PrimaryWriteSpecificationConfig documentGenerator(
         ContextDocumentGenerator documentGenerator) {
       this.documentGenerator = documentGenerator;
       return this;
     }
 
+    /**
+     * Configure which and how many documents are selected from another collection.
+     *
+     * @param configConsumer configuration
+     * @return this
+     */
     public PrimaryWriteSpecificationConfig referenceDistributionConfig(
         Consumer<ReferencesDistributionConfig> configConsumer) {
       var config = new ReferencesDistributionConfig();
@@ -530,6 +647,12 @@ public class BenchmarkBuilder {
       return this;
     }
 
+    /**
+     * Shift the ids by the given value.
+     *
+     * @param idShift value added to ids
+     * @return this
+     */
     public PrimaryWriteSpecificationConfig idShift(long idShift) {
       this.idShift = idShift;
       return this;
@@ -545,17 +668,36 @@ public class BenchmarkBuilder {
 
     private ReferencesDistributionConfig() {}
 
+    /**
+     * Always select the same number of documents from the target collection.
+     *
+     * @param constantNumber number of documents to select
+     * @return this
+     */
     public ReferencesDistributionConfig constantNumber(int constantNumber) {
       this.countDistribution = new LongDistributionFactory().constant(constantNumber);
       return this;
     }
 
+    /**
+     * Configure which documents get selected
+     *
+     * @param configConsumer configuration
+     * @return this
+     */
     public ReferencesDistributionConfig documentDistribution(
         Consumer<DocumentDistributionConfig> configConsumer) {
       configConsumer.accept(documentDistributionConfig);
       return this;
     }
 
+    /**
+     * Determine amount of selected documents by sampling the provided {@link Distribution}.
+     *
+     * @see LongDistributionFactory
+     * @param countDistributionFactory factory for creating Distribution
+     * @return this
+     */
     public ReferencesDistributionConfig countDistribution(
         Function<LongDistributionFactory, Distribution<Long>> countDistributionFactory) {
       this.countDistribution = countDistributionFactory.apply(new LongDistributionFactory());
@@ -566,30 +708,48 @@ public class BenchmarkBuilder {
   public static class DocumentDistributionConfig {
     @NotNull private CollectionName collectionName;
     @NotNull private IdDistribution idDistribution;
-    private boolean recomputable = false;
 
     private ExistingDocumentDistributionConfig existingDocumentDistributionConfig;
     private RecomputableDocumentDistributionConfig recomputableDocumentDistributionConfig;
 
     private DocumentDistributionConfig() {}
 
+    /**
+     * Set the collection name to select documents from.
+     *
+     * @param collectionName target collection's name
+     * @return this
+     */
     public DocumentDistributionConfig collectionName(String collectionName) {
       this.collectionName = new CollectionName(collectionName);
       return this;
     }
 
+    /**
+     * Configure which documents are chosen from the target collection.
+     *
+     * @param factory creates IdDistribution
+     * @return this
+     */
     public DocumentDistributionConfig idDistribution(
         Function<IdDistributionFactory, IdDistribution> factory) {
       idDistribution = factory.apply(new IdDistributionFactory());
       return this;
     }
 
+    @Deprecated
     public ExistingDocumentDistributionConfig existing() {
       recomputableDocumentDistributionConfig = null;
       existingDocumentDistributionConfig = new ExistingDocumentDistributionConfig();
       return existingDocumentDistributionConfig;
     }
 
+    /**
+     * Recompute the target documents on demand instead of storing the documents in the database.
+     * This can be done deterministically by seeding the RNG with the target document's id.
+     *
+     * @return recomputable config
+     */
     public RecomputableDocumentDistributionConfig recomputable() {
       existingDocumentDistributionConfig = null;
       recomputableDocumentDistributionConfig = new RecomputableDocumentDistributionConfig();
@@ -616,6 +776,13 @@ public class BenchmarkBuilder {
 
   public static class RecomputableDocumentDistributionConfig {}
 
+  /**
+   * Configure a {@link ReadSpecification}. A read specification can either resemble a find or
+   * aggregate query. The read specifications can be called during the transaction phase.
+   *
+   * @param configConsumer specification config
+   * @return this
+   */
   public BenchmarkBuilder readSpecification(Consumer<ReadSpecificationConfig> configConsumer) {
     var config = new ReadSpecificationConfig();
     configConsumer.accept(config);
@@ -629,16 +796,34 @@ public class BenchmarkBuilder {
     @NotNull private BiFunction<VariableSuppliers, IdDistributionFactory, QueryGenerator>
         queryGeneratorFunction;
 
+    /**
+     * Set the read specification's name
+     *
+     * @param name name for later reference
+     * @return this
+     */
     public ReadSpecificationConfig name(String name) {
       this.name = name;
       return this;
     }
 
+    /**
+     * Set the query generator.
+     *
+     * @param queryGenerator
+     * @return this
+     */
     public ReadSpecificationConfig queryGenerator(QueryGenerator queryGenerator) {
       this.queryGeneratorFunction = (v, i) -> queryGenerator;
       return this;
     }
 
+    /**
+     * Set the query generator.
+     *
+     * @param config factory for a query generator
+     * @return this
+     */
     public ReadSpecificationConfig queryGenerator(
         BiFunction<VariableSuppliers, IdDistributionFactory, QueryGenerator> config) {
       queryGeneratorFunction = config;
@@ -646,11 +831,22 @@ public class BenchmarkBuilder {
     }
   }
 
+  /**
+   * Add index configuration, which should be applied to the database.
+   * @param indexConfiguration index to be created
+   * @return this
+   */
   public BenchmarkBuilder indexConfiguration(IndexConfiguration indexConfiguration) {
     indexConfigurations.add(indexConfiguration);
     return this;
   }
 
+  /**
+   * Configure the load phase.
+   * During the load phase a share of the total data is loaded into the database.
+   * @param configConsumer configuration
+   * @return this
+   */
   public BenchmarkBuilder loadPhase(Consumer<LoadPhaseConfig> configConsumer) {
     this.loadPhaseConfig = new LoadPhaseConfig();
     configConsumer.accept(this.loadPhaseConfig);
@@ -664,18 +860,37 @@ public class BenchmarkBuilder {
     @Min(1)
     private int numThreads = 10;
 
+    /**
+     * Add primary write specification to the load phase and set the number of invocations.
+     * @param targetCount number of invocations
+     * @param primaryWriteSpecificationName name set by {@link BenchmarkBuilder#primaryWriteSpecification(String, Consumer)}
+     * @return this
+     */
     public LoadPhaseConfig primaryWriteSpecification(
         long targetCount, String primaryWriteSpecificationName) {
       primaryWriteSpecifications.add(new Pair<>(targetCount, primaryWriteSpecificationName));
       return this;
     }
 
+    /**
+     * Number of concurrent client threads.
+     * Each client thread executes one primary write specification at a time.
+     * However, the number of concurrent threads can be greater, as each write specification calls other write specification and executes them in parallel.
+     * @param numThreads number of client threads
+     * @return this
+     */
     public LoadPhaseConfig numThreads(int numThreads) {
       this.numThreads = numThreads;
       return this;
     }
   }
 
+  /**
+   * Configure the transaction phase.
+   * During the transaction phase a mixture of primary write and read specifications are called, to simulate a given workload.
+   * @param configConsumer transaction phase configuration
+   * @return this
+   */
   public BenchmarkBuilder transactionPhase(Consumer<TransactionPhaseConfig> configConsumer) {
     this.transactionPhaseConfig = new TransactionPhaseConfig();
     configConsumer.accept(this.transactionPhaseConfig);
@@ -688,6 +903,11 @@ public class BenchmarkBuilder {
 
     private TransactionPhaseConfig() {}
 
+    /**
+     * Run a power test during the transaction phase.
+     * @param configConsumer power test config
+     * @return this
+     */
     public TransactionPhaseConfig powerTest(
         Consumer<PowerTestTransactionPhaseConfig> configConsumer) {
       this.weightedRandomTransactionPhaseConfig = null;
@@ -696,6 +916,11 @@ public class BenchmarkBuilder {
       return this;
     }
 
+    /**
+     * Run specifications according to their assigned weights.
+     * @param configConsumer config with weights
+     * @return this
+     */
     public TransactionPhaseConfig weightedRandom(
         Consumer<WeightedRandomTransactionPhaseConfig> configConsumer) {
       this.powerTestTransactionPhaseConfig = null;
@@ -710,11 +935,25 @@ public class BenchmarkBuilder {
 
     private PowerTestTransactionPhaseConfig() {}
 
+    /**
+     * Append a single specification to the list of specifications, that should be run.
+     * The specification can either be a read specification or a primary write specification.
+     * The name is the same as in {@link ReadSpecificationConfig#name(String)} or {@link BenchmarkBuilder#primaryWriteSpecification(String, Consumer)}
+     * @param topLevelSpecificationName specification name
+     * @return this
+     */
     public PowerTestTransactionPhaseConfig specification(String topLevelSpecificationName) {
       specificationNames.add(topLevelSpecificationName);
       return this;
     }
 
+    /**
+     * Append a multiple specification to the list of specifications, that should be run.
+     * The specification can either be a read specification or a primary write specification.
+     * The name is the same as in {@link ReadSpecificationConfig#name(String)} or {@link BenchmarkBuilder#primaryWriteSpecification(String, Consumer)}
+     * @param topLevelSpecificationNames specification names
+     * @return this
+     */
     public PowerTestTransactionPhaseConfig specification(String... topLevelSpecificationNames) {
       specificationNames.addAll(Arrays.asList(topLevelSpecificationNames));
       return this;
@@ -731,21 +970,46 @@ public class BenchmarkBuilder {
       weightedSpecifications = new LinkedList<>();
     }
 
+    /**
+     * Set the number of total operations.
+     * In each iteration one operation is chosen from the weighted specification list and executed.
+     * @param totalCount number of total iterations
+     * @return this
+     */
     public WeightedRandomTransactionPhaseConfig totalCount(long totalCount) {
       this.totalCount = totalCount;
       return this;
     }
 
+    /**
+     * Set number of concurrent client threads.
+     * Each client thread executes one specification at a time.
+     * However, the number of concurrent threads can be larger, because any {@link WriteSpecification} can run multiple other WriteSpecifications concurrently.
+     * @param threadCount number of client threads
+     * @return this
+     */
     public WeightedRandomTransactionPhaseConfig threadCount(int threadCount) {
       this.threadCount = threadCount;
       return this;
     }
 
+    /**
+     * Set number of operations per millisecond.
+     * @param targetOps number of operations per millisecond.
+     * @return this
+     */
     public WeightedRandomTransactionPhaseConfig targetOps(double targetOps) {
       this.targetOps = targetOps;
       return this;
     }
 
+    /**
+     * Add one primary write specification or read specification with weight to the list of specifications.
+     * The name is the same as in {@link ReadSpecificationConfig#name(String)} or {@link BenchmarkBuilder#primaryWriteSpecification(String, Consumer)}
+     * @param weight assigned weight
+     * @param specificationName read or primary write specification name
+     * @return this
+     */
     public WeightedRandomTransactionPhaseConfig weightedSpecification(
         double weight, String specificationName) {
       weightedSpecifications.add(new Pair<>(weight, specificationName));

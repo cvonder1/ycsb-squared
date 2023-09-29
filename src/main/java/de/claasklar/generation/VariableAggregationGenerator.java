@@ -7,6 +7,9 @@ import de.claasklar.primitives.query.AggregationOptions;
 import de.claasklar.primitives.query.Query;
 import java.util.function.Supplier;
 
+/**
+ * A {@link QueryGenerator} implementation that returns an aggregation query with changeable variables.
+ */
 public class VariableAggregationGenerator implements QueryGenerator {
 
   private final CollectionName collectionName;

@@ -5,6 +5,7 @@ import de.claasklar.primitives.query.Aggregation;
 import de.claasklar.primitives.query.AggregationOptions;
 import de.claasklar.primitives.query.Query;
 
+/** A {@link QueryGenerator} implementation which always returns the same aggregation pipeline. */
 public class SameAggregationGenerator implements QueryGenerator {
 
   private final CollectionName collectionName;

@@ -1,6 +1,7 @@
 package de.claasklar.generation.pipes;
 
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Predicate;
 import com.jayway.jsonpath.internal.ParseContextImpl;
 import de.claasklar.primitives.CollectionName;
 import de.claasklar.primitives.document.ArrayValue;
@@ -42,6 +43,16 @@ public class Pipes {
       this.pipe = (input) -> input.get(collectionName);
     }
 
+    /**
+     * Select from the incoming array/object by an JsonPath expression.
+     *
+     * <p>Input: OurDocument[] <br>
+     * Output: Object, mostly List&lt;Object&gt; or Map&lt;String, Object&gt;
+     *
+     * @see JsonPath#compile(String, Predicate...)
+     * @param path JsonPath expression
+     * @return {@link Object}
+     */
     public PipeBuilder selectByPath(String path) {
       var jsonPath = JsonPath.compile(path);
       this.pipe =
@@ -57,6 +68,13 @@ public class Pipes {
       return this;
     }
 
+    /**
+     * Convert incoming objects to {@link ArrayValue}.
+     *
+     * <p>Input: List&lt;Object&gt; or Object[] Output: {@link ArrayValue}
+     *
+     * @return Pipe with ArrayValue output
+     */
     public Pipe<Map<CollectionName, OurDocument[]>, ArrayValue> toArray() {
       return this.pipe
           .pipe(
@@ -77,6 +95,14 @@ public class Pipes {
               });
     }
 
+    /**
+     * Convert incoming Object into {@link ObjectValue}.
+     *
+     * <p>Input: Map&lt;String, Object&gt; <br>
+     * Output: ObjectValue
+     *
+     * @return Pipe with ObjectValue output
+     */
     public Pipe<Map<CollectionName, OurDocument[]>, ObjectValue> toObject() {
       return this.pipe
           .pipe(input -> (Map) input)
@@ -90,6 +116,14 @@ public class Pipes {
               });
     }
 
+    /**
+     * Convert incoming byte[] to {@link Id}.
+     *
+     * <p>Incoming: byte[] with length 1 <br>
+     * Output: Id
+     *
+     * @return Pipe with Id output
+     */
     public Pipe<Map<CollectionName, OurDocument[]>, Id> toId() {
       return this.pipe.pipe(input -> (byte[]) input).pipe(Id::new);
     }
